@@ -12,6 +12,7 @@
       patch   - Patchbay-Ansicht (Audio-Routing)
       patchcv - Patchbay-Ansicht, Reiter "PARAMETER CV"
       morph   - A/B-Slots belegen, MORPH-Slider auf 50 %
+      mixer   - Mixer-Ansicht (13 Kanalstreifen)
 */
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -81,6 +82,9 @@ int main (int argc, char** argv)
 
     if (mode == "patch")
         clickIfFound (component, "PATCHBAY");
+
+    if (mode == "mixer")
+        clickIfFound (component, "MIXER");
 
     if (mode == "patchcv")
     {

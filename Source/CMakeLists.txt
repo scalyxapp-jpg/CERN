@@ -9,6 +9,7 @@ set(CERN_COMMON_SOURCES
     DSP/KickSynthesisEngine.cpp
     DSP/PatchGraph.cpp
     DSP/ParameterPatchGraph.cpp
+    DSP/MixerStage.cpp
 
     Sequencer/StepSequencer.cpp
 
@@ -27,6 +28,7 @@ set(CERN_COMMON_SOURCES
     GUI/HiggsField3D.cpp
     GUI/PatchView.cpp
     GUI/ParameterPatchView.cpp
+    GUI/MixerView.cpp
 )
 
 # --- UI-Assets (Logo, Metall-/Kappen-Texturen) als BinaryData ---
@@ -251,6 +253,7 @@ add_executable(CERNTests
     ${CMAKE_CURRENT_SOURCE_DIR}/DSP/KickSynthesisEngine.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/DSP/PatchGraph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/DSP/ParameterPatchGraph.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/DSP/MixerStage.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Sequencer/StepSequencer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Presets/PresetManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/GUI/HiggsField3D.cpp

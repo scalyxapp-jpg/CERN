@@ -30,7 +30,14 @@ MainComponent::MainComponent (CERNAudioProcessor& processorRef,
     spectrumBars.assign (64, 0.0f);
 
     header = std::make_unique<HeaderBar> (processor, audioDeviceManager);
-    header->onPatchToggle = [this] { setPatchMode (! patchMode); };
+    header->onPatchToggle = [this]
+    {
+        setViewMode (viewMode == ViewMode::patchbay ? ViewMode::front : ViewMode::patchbay);
+    };
+    header->onMixerToggle = [this]
+    {
+        setViewMode (viewMode == ViewMode::mixer ? ViewMode::front : ViewMode::mixer);
+    };
     addAndMakeVisible (*header);
 
     macroPanel = std::make_unique<MacroPanel> (processor);
@@ -176,6 +183,11 @@ MainComponent::MainComponent (CERNAudioProcessor& processorRef,
                                               processor.getAPVTS());
     addChildComponent (*patchView);
 
+    // Mixer-Tab: ein Kanalstreifen je klang-erzeugendem Modul.
+    mixerView = std::make_unique<MixerView> (processor.getAPVTS(),
+                                              processor.getEngine().getMixer());
+    addChildComponent (*mixerView);
+
     startTimerHz (30);
 }
 
@@ -201,20 +213,32 @@ void MainComponent::paint (juce::Graphics& g)
 
 void MainComponent::setPatchMode (bool on)
 {
-    patchMode = on;
+    setViewMode (on ? ViewMode::patchbay : ViewMode::front);
+}
+
+void MainComponent::setViewMode (ViewMode mode)
+{
+    viewMode = mode;
+    patchMode = (mode == ViewMode::patchbay);
+
+    const bool front = (mode == ViewMode::front);
 
     if (header != nullptr)
-        header->setPatchActive (on);
+    {
+        header->setPatchActive (patchMode);
+        header->setMixerActive (mode == ViewMode::mixer);
+    }
 
-    sectionViewport.setVisible (! on);
-    waveformDisplay.setVisible (! on);
-    spectrumAnalyzer.setVisible (! on);
-    envelopeEditor.setVisible (! on);
-    if (meterDisplay) meterDisplay->setVisible (! on);
-    if (higgsField) higgsField->setVisible (! on);
-    if (footer) footer->setVisible (! on);
-    if (macroPanel) macroPanel->setVisible (! on);
-    if (patchView) patchView->setVisible (on);
+    sectionViewport.setVisible (front);
+    waveformDisplay.setVisible (front);
+    spectrumAnalyzer.setVisible (front);
+    envelopeEditor.setVisible (front);
+    if (meterDisplay) meterDisplay->setVisible (front);
+    if (higgsField) higgsField->setVisible (front);
+    if (footer) footer->setVisible (front);
+    if (macroPanel) macroPanel->setVisible (front);
+    if (patchView) patchView->setVisible (patchMode);
+    if (mixerView) mixerView->setVisible (mode == ViewMode::mixer);
 
     resized();
     repaint();
@@ -322,11 +346,12 @@ void MainComponent::resized()
 
     header->setBounds (0, 0, w, headerH);
 
-    if (patchMode)
+    if (patchMode || viewMode == ViewMode::mixer)
     {
         if (footer) footer->setBounds (0, h, w, 0);
         if (macroPanel) macroPanel->setBounds (0, headerH, w, 0);
         if (patchView) patchView->setBounds (0, headerH, w, juce::jmax (0, h - headerH));
+        if (mixerView) mixerView->setBounds (0, headerH, w, juce::jmax (0, h - headerH));
         return;
     }
 
@@ -723,6 +748,12 @@ MainComponent::HeaderBar::HeaderBar (CERNAudioProcessor& p,
     patchButton.onClick = [this] { if (onPatchToggle) onPatchToggle(); };
     addAndMakeVisible (patchButton);
 
+    mixerButton.setTooltip ("Mixer: one channel per sound module (gain, 4-band EQ, mute) "
+                            "plus the automatic sidechain relations.");
+    mixerButton.setClickingTogglesState (false);
+    mixerButton.onClick = [this] { if (onMixerToggle) onMixerToggle(); };
+    addAndMakeVisible (mixerButton);
+
     cableLed.setTooltip ("Active cables in the patchbay");
     addAndMakeVisible (cableLed);
 
@@ -825,6 +856,11 @@ MainComponent::HeaderBar::~HeaderBar()
 void MainComponent::HeaderBar::setPatchActive (bool active)
 {
     patchButton.setButtonText (active ? "FRONT" : "PATCHBAY");
+}
+
+void MainComponent::HeaderBar::setMixerActive (bool active)
+{
+    mixerButton.setButtonText (active ? "FRONT" : "MIXER");
 }
 
 void MainComponent::HeaderBar::setCableCount (int count)
@@ -1062,6 +1098,9 @@ void MainComponent::HeaderBar::resized()
         patchButton.setBounds (leftX, row2Y, 88, rowH);
         leftX += 88 + gap;
 
+        mixerButton.setBounds (leftX, row2Y, 76, rowH);
+        leftX += 76 + gap;
+
         cableLed.setBounds (leftX, row2Y, 50, rowH);
         leftX += 50 + gap;
 
@@ -1113,6 +1152,9 @@ void MainComponent::HeaderBar::resized()
     int leftX = margin + LogoComponent::preferredWidthForHeight (logoH) + 16;
     patchButton.setBounds (leftX, rowY, 96, rowH);
     leftX += 96 + 6;
+
+    mixerButton.setBounds (leftX, rowY, 84, rowH);
+    leftX += 84 + 6;
 
     cableLed.setBounds (leftX, rowY, 54, rowH);
     leftX += 54 + 6;

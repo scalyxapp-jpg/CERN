@@ -234,7 +234,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     // 2.14 Higgs Field (15)
     // ------------------------------------------------------------------
     layout.add (std::make_unique<juce::AudioParameterBool> (
-        ParameterIDs::higgsEnabled, "Higgs Enabled", true, "Higgs Effect"));
+        ParameterIDs::higgsEnabled, "Higgs Enabled", false, "Higgs Effect"));
     layout.add (addFloat (ParameterIDs::higgsCursorPhi,       "Higgs Cursor Phi",      { 0.0f, 1.0f, 0.001f }, DefaultValues::higgsCursorPhi));
     layout.add (addFloat (ParameterIDs::higgsCursorTheta,     "Higgs Cursor Theta",    { 0.0f, 360.0f, 0.1f }, DefaultValues::higgsCursorTheta));
     layout.add (addFloat (ParameterIDs::higgsFieldStrength,   "Higgs Field Strength",  { 0.0f, 1.0f, 0.01f }, DefaultValues::higgsFieldStrength));
@@ -347,8 +347,27 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     layout.add (addFloat (ParameterIDs::duckDepth,   "Duck Depth",   { 0.0f, 24.0f, 0.1f }, DefaultValues::duckDepth));
     layout.add (addFloat (ParameterIDs::duckRelease, "Duck Release", { 20.0f, 500.0f, 1.0f }, DefaultValues::duckRelease));
 
-    // 1199 Basis-Parameter + 12 Module-Enables + 15 Material Room + 3 Feature = 1229
-    // (siehe numLayoutParameters).
+    // ------------------------------------------------------------------
+    // 2.23 Mixer (12 Kanäle × 5 Parameter = 60)
+    // Reihenfolge identisch zu ParameterIDs::getAllIDs() (dort am Ende).
+    // Gain: 0–2 (1 = neutral). Bänder: -24…+24 dB.
+    // ------------------------------------------------------------------
+    for (int i = 0; i < ParameterIDs::mixerChannelCount; ++i)
+    {
+        const auto name = juce::String ("Mixer Ch") + juce::String (i + 1);
+        layout.add (addFloat (ParameterIDs::mixerId (i, "Gain"),   name + " Gain",   { 0.0f, 2.0f, 0.01f }, 1.0f));
+        layout.add (addFloat (ParameterIDs::mixerId (i, "Low"),    name + " Low",    { -24.0f, 24.0f, 0.1f }, 0.0f));
+        layout.add (addFloat (ParameterIDs::mixerId (i, "MidLow"), name + " MidLow", { -24.0f, 24.0f, 0.1f }, 0.0f));
+        layout.add (addFloat (ParameterIDs::mixerId (i, "Mid"),    name + " Mid",    { -24.0f, 24.0f, 0.1f }, 0.0f));
+        layout.add (addFloat (ParameterIDs::mixerId (i, "High"),   name + " High",   { -24.0f, 24.0f, 0.1f }, 0.0f));
+        layout.add (std::make_unique<juce::AudioParameterBool> (
+            ParameterIDs::mixerId (i, "Mute"), name + " Mute", false, "Channel mute"));
+    }
+    layout.add (addFloat (ParameterIDs::mixerSidechainDepth, "Mixer Sidechain Depth",
+                          { 0.0f, 1.0f, 0.01f }, 1.0f));
+
+    // 1199 Basis-Parameter + 12 Module-Enables + 15 Material Room + 3 Feature
+    // + 78 Mixer + 1 Sidechain = 1308 (siehe numLayoutParameters).
     jassert (getLayoutParameterCount() == numLayoutParameters);
 
     return layout;

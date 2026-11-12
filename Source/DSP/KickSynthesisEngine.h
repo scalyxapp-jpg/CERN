@@ -16,6 +16,7 @@
 #include "OversamplingHelper.h"
 #include "MaterialReverb.h"
 #include "MaterialRoom.h"
+#include "MixerStage.h"
 #include "HiggsFieldEngine.h"
 #include "PatchGraph.h"
 #include "ParameterPatchGraph.h"
@@ -126,6 +127,10 @@ public:
     }
 
     /** Aktuellen Audio-Patch abfragen / ändern (EURORACK-artiges Re-Patching). */
+    /** Mixer-Stufe (Kanaele, EQ, Sidechain) fuer die GUI. */
+    MixerStage& getMixer() noexcept { return mixer; }
+    const MixerStage& getMixer() const noexcept { return mixer; }
+
     PatchGraph& getPatchGraph() noexcept { return patchGraph; }
     const PatchGraph& getPatchGraph() const noexcept { return patchGraph; }
 
@@ -168,6 +173,10 @@ private:
     MaterialReverb reverb;
     MaterialRoom materialRoom;
     HiggsFieldEngine higgs;
+
+    /** Mehrkanal-Mixer (letzte Stufe vor dem Output): pro Klang-Modul ein
+        Kanal mit Lautstaerke, 4-Band-EQ, Mute und automatischer Sidechain. */
+    MixerStage mixer;
 
     // ---- Modulare Verkabelung (Eurorack-artig) ----
     PatchGraph patchGraph;

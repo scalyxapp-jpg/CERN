@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_core/juce_core.h>
+#include <array>
 #include <vector>
 #include <string>
 
@@ -283,6 +284,36 @@ static constexpr auto* duckDepth             = "duckDepth";              // 0–
 static constexpr auto* duckRelease           = "duckRelease";            // 20–500 ms (SND-174)
 
 // ============================================================================
+// 2.23 Mixer (12 Kanäle x 5 Parameter = 60): pro Sound-Modul ein Kanal.
+// Gain 0–2 (1=neutral), Low/MidLow/Mid/High in dB (-24–+24).
+// Ans Ende angehängt, um bestehende Indizes stabil zu halten.
+// ============================================================================
+static constexpr int mixerChannelCount = 13;
+inline juce::String mixerId (int channel, const char* param) { return juce::String ("mixer") + juce::String (channel) + param; }
+static constexpr auto* mixerSidechainDepth = "mixerSidechainDepth"; // 0–1, globale Sidechain-Tiefe
+
+/** Reihenfolge der Mixer-Parameter je Kanal (Gain, Low, MidLow, Mid, High, Mute). */
+inline constexpr std::array<const char*, 6> mixerParamOrder { "Gain", "Low", "MidLow", "Mid", "High", "Mute" };
+
+/** Statische ID-Tabelle (allokationsfrei für den Audio-Thread). */
+inline const std::vector<std::string>& mixerParamIdTable()
+{
+    static const std::vector<std::string> table = []
+    {
+        std::vector<std::string> v;
+        v.reserve ((size_t) mixerChannelCount * mixerParamOrder.size());
+
+        for (int i = 0; i < mixerChannelCount; ++i)
+            for (const auto* p : mixerParamOrder)
+                v.push_back (mixerId (i, p).toStdString());
+
+        return v;
+    }();
+    return table;
+}
+
+
+// ============================================================================
 // Alle Parameter-IDs in APVTS-Erstellungsreihenfolge
 // (#132 - #143: Modul-Enable-IDs. Sie sind bei den jeweiligen Modulen
 //  deklariert, werden aber ans Ende einsortiert, damit bestehende
@@ -432,6 +463,19 @@ inline const std::vector<juce::String>& getAllIDs()
         v.push_back (tubeTrack);
         v.push_back (duckDepth);
         v.push_back (duckRelease);
+
+        // Mixer (12 Kanäle × 6 Parameter = 72 + 1 globale Sidechain-Tiefe).
+        // Nach allen bestehenden IDs angehängt.
+        for (int i = 0; i < mixerChannelCount; ++i)
+        {
+            v.push_back (mixerId (i, "Gain"));
+            v.push_back (mixerId (i, "Low"));
+            v.push_back (mixerId (i, "MidLow"));
+            v.push_back (mixerId (i, "Mid"));
+            v.push_back (mixerId (i, "High"));
+            v.push_back (mixerId (i, "Mute"));
+        }
+        v.push_back (mixerSidechainDepth);
         return v;
     }();
     return ids;

@@ -18,16 +18,16 @@ struct DefaultValues
     static constexpr float membraneStiffness    = 0.10f;
 
     // Tube / Hollow
-    static constexpr float tubeResonanceFreq    = 85.0f; // ~1.8x bei 46 Hz
-    static constexpr float tubeResonanceQ       = 4.0f;
-    static constexpr float tubeResonanceLevel   = 0.22f;
+    static constexpr float tubeResonanceFreq    = 70.0f; // ~1.5x bei 46 Hz
+    static constexpr float tubeResonanceQ       = 2.5f;
+    static constexpr float tubeResonanceLevel   = 0.15f;
     static constexpr float tubeCoupling         = 0.30f;
     static constexpr float hollowMetallic       = 0.08f;
 
     // Pitch Envelope
     static constexpr float pitchEnvAttack       = 0.2f;
     static constexpr float pitchEnvDecay        = 60.0f;
-    static constexpr float pitchEnvDepth        = 0.50f;
+    static constexpr float pitchEnvDepth        = 0.30f;
     static constexpr float pitchEnvCurve        = 0.0f;
 
     // Click / Beater
@@ -100,7 +100,7 @@ struct DefaultValues
     static constexpr float reverbGate           = 0.0f; // 0 = Gate aus (aktiv 10–500 ms)
 
     // Global / Tuning
-    static constexpr float rootNote             = 33.0f; // ~46 Hz (A1), SND-129 aktualisiert
+    static constexpr float rootNote             = 30.0f; // F#1 = 46,25 Hz (SND-129)
     static constexpr float velocitySensitivity  = 0.6f;
     static constexpr float keyRoot              = 0.0f;  // C
     static constexpr int   scale                = 0;     // Chromatic
@@ -119,19 +119,19 @@ struct DefaultValues
     static constexpr bool  sequencerClockOut    = false;
 
     // Higgs
-    static constexpr float higgsEnabled         = 1.0f;
+    static constexpr float higgsEnabled         = 0.0f;
     static constexpr float higgsCursorPhi       = 0.5f;
     static constexpr float higgsCursorTheta     = 180.0f;
     static constexpr float higgsFieldStrength   = 0.75f;
     static constexpr float higgsVev             = 0.7f;
     static constexpr float higgsSelfCoupling    = 0.65f;
     static constexpr float higgsInertia         = 0.45f;
-    static constexpr float higgsYukawaBoost     = 0.60f;
-    static constexpr float higgsBosonHz         = 92.50f;
+    static constexpr float higgsYukawaBoost     = 0.30f;
+    static constexpr float higgsBosonHz         = 46.25f;
     static constexpr float higgsBosonQ          = 10.0f;
     static constexpr float higgsSymmetry        = 0.5f;
     static constexpr float higgsDecay           = 0.62f;
-    static constexpr float higgsMix             = 0.38f;
+    static constexpr float higgsMix             = 0.12f;
     static constexpr float higgsRate            = 0.65f;
     static constexpr float higgsDepth           = 0.35f;
 
@@ -186,7 +186,7 @@ struct DefaultValues
 //==============================================================================
 /** Anzahl der Parameter im Layout: 1199 Basis-Parameter + 12 Module-Enables
     + 15 Material Room / Sub Grumble + 3 Feature-Findings = 1229. */
-inline constexpr int numLayoutParameters = 1229;
+inline constexpr int numLayoutParameters = 1308; // 1229 + 78 Mixer + 1 Sidechain
 
 /** Erstellt das APVTS-Parameter-Layout mit allen 1229 Parametern. */
 juce::AudioProcessorValueTreeState::ParameterLayout createLayout();

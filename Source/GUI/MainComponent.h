@@ -12,6 +12,7 @@
 #include "GUI/EnvelopeEditor.h"
 #include "GUI/HiggsField3D.h"
 #include "GUI/LogoComponent.h"
+#include "GUI/MixerView.h"
 #include "GUI/PatchView.h"
 #include "GUI/SectionPanel.h"
 #include "GUI/SpectrumAnalyzer.h"
@@ -62,6 +63,11 @@ private:
     float rawValue (const juce::String& parameterId);
     void setPatchMode (bool on);
 
+    /** Front-Ansicht / Patchbay / Mixer (Tab-Umschaltung im Header). */
+    enum class ViewMode { front, patchbay, mixer };
+    void setViewMode (ViewMode mode);
+    ViewMode viewMode { ViewMode::front };
+
     /** SND-168: Undo/Redo ueber den UndoManager des APVTS. */
     void performUndo();
     void performRedo();
@@ -89,6 +95,7 @@ private:
     juce::Component sectionContainer;
 
     std::unique_ptr<PatchView> patchView;
+    std::unique_ptr<MixerView> mixerView;
     bool patchMode { false };
 
     // FFT fuer den Spectrum-Analyzer
@@ -178,7 +185,11 @@ public:
     void resized() override;
 
     std::function<void()> onPatchToggle;
+    std::function<void()> onMixerToggle;
     void setPatchActive (bool active);
+
+    /** Mixer-Tab aktiv? Dann zeigt der Button "FRONT". */
+    void setMixerActive (bool active);
 
     /** MORPH-Regler sichtbar (beide A/B-Slots belegt)? */
     bool isMorphVisible() const { return morphSlider.isVisible(); }
@@ -259,6 +270,7 @@ private:
     LogoComponent logo;
     juce::Label presetLabel;
     juce::TextButton patchButton { "PATCHBAY" };
+    juce::TextButton mixerButton { "MIXER" };
     juce::TextButton triggerButton { "TRIGGER" };
     juce::TextButton audioButton { "AUDIO" };
     juce::ComboBox presetSelector;
