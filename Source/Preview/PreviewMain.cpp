@@ -81,13 +81,17 @@ int main (int argc, char** argv)
     MainComponent component (processor);
     component.setSize (juce::jmax (700, width), juce::jmax (500, height));
 
-    if (mode == "layering")
+    if (mode == "layering" || mode == "layering150")
     {
         // Layering einschalten, einen Kick rendern und die Displays aktualisieren:
         // so ist im Screenshot sichtbar, wie die beiden Zusatz-Layer in der
         // Waveform liegen und welche Werte automatisch abgeleitet wurden.
         if (auto* parameter = processor.getAPVTS().getParameter (ParameterIDs::layeringEnabled))
             parameter->setValueNotifyingHost (1.0f);
+
+        if (mode == "layering150")
+            if (auto* amount = processor.getAPVTS().getParameter (ParameterIDs::layeringAmount))
+                amount->setValueNotifyingHost (amount->convertTo0to1 (150.0f));
 
         processor.triggerNote (1.0f);
 

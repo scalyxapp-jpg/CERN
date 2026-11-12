@@ -23,6 +23,7 @@ namespace
     {
         return juce::String (db, 1) + " dB";
     }
+
 }
 
 //==============================================================================
@@ -252,7 +253,7 @@ void WaveformDisplay::paint (juce::Graphics& g)
     juce::Rectangle<float> legend;
 
     if (showLegend)
-        legend = area.removeFromBottom (juce::jmin (24.0f, area.getHeight() * 0.30f));
+        legend = area.removeFromBottom (juce::jmin (34.0f, area.getHeight() * 0.34f));
 
     // Gitter
     g.setColour (CERNLookAndFeel::textColour.withAlpha (0.07f));
@@ -328,28 +329,68 @@ void WaveformDisplay::paint (juce::Graphics& g)
     // ---- Legende: automatisch errechnete Layer-Werte ----
     if (showLegend && legend.getHeight() > 8.0f)
     {
-        const float lineH = legend.getHeight() * 0.5f;
+        const auto legendFont = CERNLookAndFeel::getLabelFont();
+        g.setFont (legendFont);
+
+        const juce::String densityText = juce::String (juce::roundToInt (layerInfo.density * 100.0f)) + "%";
+        const bool showAmount = std::abs (layerInfo.amountPct - 100.0f) >= 0.5f;
+
+        const juce::String lowText  = hzText (layerInfo.lowHz) + " · " + msText (layerInfo.lowDecayMs)
+                                    + " · " + dbText (layerInfo.lowGainDb);
+        const juce::String highText = hzText (layerInfo.highHz) + " · " + msText (layerInfo.highDecayMs)
+                                    + " · " + dbText (layerInfo.highGainDb);
+
+        // Drei Zeilen, wenn Platz ist (Dichte + Amount), sonst zwei Zeilen mit
+        // der Dichte am Ende der L2-Zeile.
+        const bool threeRows = legend.getHeight() >= 30.0f && legend.getWidth() >= 170.0f;
+        const float lineH = legend.getHeight() / (threeRows ? 3.0f : 2.0f);
+
+        auto drawRow = [&] (juce::Rectangle<float> row, juce::Colour colour,
+                            const juce::String& label, float labelWidth,
+                            const juce::String& value)
+        {
+            g.setColour (colour);
+            g.drawText (label, row.removeFromLeft (labelWidth),
+                        juce::Justification::centredLeft, false);
+            g.setColour (CERNLookAndFeel::textColour.withAlpha (0.80f));
+            g.drawText (value, row, juce::Justification::centredLeft, true);
+        };
 
         auto row1 = legend.removeFromTop (lineH);
-        auto row2 = legend;
+        auto row2 = legend.removeFromTop (lineH);
 
-        g.setFont (CERNLookAndFeel::getLabelFont());
+        // Bei schmalem Panel kurze Labels, damit die Messwerte vollstaendig passen.
+        const bool narrowLabels = getWidth() < 250;
+        const float labelWidth = narrowLabels ? 52.0f : 72.0f;
 
-        g.setColour (layerLowColour);
-        g.drawText ("L1 DEPTH", row1.removeFromLeft (62.0f),
-                    juce::Justification::centredLeft, false);
-        g.setColour (CERNLookAndFeel::textColour.withAlpha (0.80f));
-        g.drawText (hzText (layerInfo.lowHz) + "  ·  " + msText (layerInfo.lowDecayMs)
-                        + "  ·  " + dbText (layerInfo.lowGainDb),
-                    row1, juce::Justification::centredLeft, false);
+        drawRow (row1, layerLowColour,  "L1 DEPTH", labelWidth, lowText);
+        drawRow (row2, layerHighColour, narrowLabels ? "L2 PRES" : "L2 PRESENCE", labelWidth,
+                 threeRows ? highText : highText + " · D " + densityText);
 
-        g.setColour (layerHighColour);
-        g.drawText ("L2 PRESENCE", row2.removeFromLeft (78.0f),
-                    juce::Justification::centredLeft, false);
-        g.setColour (CERNLookAndFeel::textColour.withAlpha (0.80f));
-        g.drawText (hzText (layerInfo.highHz) + "  ·  " + msText (layerInfo.highDecayMs)
-                        + "  ·  " + dbText (layerInfo.highGainDb)
-                        + "  ·  D " + juce::String (juce::roundToInt (layerInfo.density * 100.0f)) + "%",
-                    row2, juce::Justification::centredLeft, false);
+        if (threeRows)
+        {
+            // Wichtig: das Nicht-ASCII-Literal ("·") immer RECHTS von einem
+            // juce::String verketten. operator+ (const char*, const String&)
+            // dekodiert als ASCII/Latin-1, operator+ (String, const char*)
+            // dagegen als UTF-8 (sonst erscheint "Â·").
+            juce::String extra = juce::String ("D ") + densityText;
+
+            if (showAmount)
+                extra = extra + " · AMOUNT "
+                              + juce::String (juce::roundToInt (layerInfo.amountPct)) + " %";
+
+            g.setColour (CERNLookAndFeel::textColour.withAlpha (0.55f));
+            g.drawText (extra, legend.removeFromTop (lineH),
+                        juce::Justification::centredLeft, false);
+        }
+        else if (showAmount)
+        {
+            const juce::String amountText = "x " + juce::String (layerInfo.amountPct / 100.0f, 2);
+            g.setColour (CERNLookAndFeel::textColour.withAlpha (0.55f));
+            g.drawText (amountText,
+                        juce::Rectangle<float> (row1.getX(), row1.getY(),
+                                                row1.getWidth(), row1.getHeight()),
+                        juce::Justification::centredRight, false);
+        }
     }
 }

@@ -503,6 +503,8 @@ Alle Layer-Werte sind **abgeleitet**; der einzige Regler ist der Amount:
   exakt auf neutral (bit-identisch zu „aus"), 200 % verdoppelt die Layer-Gewichte bei
   weiterhin mitgezogener Kompensation. Der Regler sitzt im Waveform-Panel unter der
   Checkbox (und in der FEATURES-Sektion); er ist ausgegraut, solange Layering aus ist.
+  Die Legende zeigt Dichte und – sobald der Amount von 100 % abweicht – den Faktor
+  (z. B. `D 47% · AMOUNT 150 %`).
 - **Pegelneutral**: `baseTrim = 0.985 / sqrt(1 + k1² + k2² + k1)` (kohärente Addition
   des Depth-Layers auf dem Grundton) auf Membrane+Body; die Layer-Gewichte werden
   mit demselben Faktor skaliert.
