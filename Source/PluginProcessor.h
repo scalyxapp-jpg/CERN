@@ -118,6 +118,7 @@ public:
     // SND-150: MIDI-Clock/Start/Stop verlassen das Plugin.
     bool producesMidi() const override { return true; }
     bool isMidiEffect() const override { return false; }
+
     double getTailLengthSeconds() const override { return engine.getTailLengthSeconds(); }
 
     //==============================================================================
@@ -151,6 +152,7 @@ private:
     LoudnessMeter loudnessMeter; // SND-170
 
     bool lastTriggerButtonState { false };
+    bool prepared { false };
     float tailLengthSeconds { 1.5f };
 
     // ---- MIDI-Clock-Ausgang (SND-150) ----

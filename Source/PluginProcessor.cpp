@@ -30,6 +30,7 @@ void CERNAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     loudnessMeter.prepare (sampleRate);
     midiFilter.prepare (sampleRate);
 
+    prepared = true;
     updateTailLength();
 }
 
@@ -56,6 +57,9 @@ void CERNAudioProcessor::updateTailLength()
 
 void CERNAudioProcessor::releaseResources()
 {
+    if (! prepared)
+        return;
+
     sequencer.reset();
     engine.reset();
     loudnessMeter.reset();
@@ -63,6 +67,7 @@ void CERNAudioProcessor::releaseResources()
     lastTriggerButtonState = false;
     midiClockSamplesUntilTick = 0.0;
     midiClockWasRunning = false;
+    prepared = false;
 }
 
 //==============================================================================
