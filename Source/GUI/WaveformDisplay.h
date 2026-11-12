@@ -29,9 +29,10 @@ public:
     /** Abgeleitete Layer-Werte fuer die Legende. */
     void setLayerInfo (const LayeringStage::Info& newInfo);
 
-    /** Baut die Checkbox "LAYERING ENABLED" in die Kopfzeile ein. */
+    /** Baut Checkbox "LAYERING ENABLED" + Regler "AMOUNT" in die Kopfzeile ein. */
     void attachLayeringControl (juce::AudioProcessorValueTreeState& apvts,
-                                const juce::String& parameterId);
+                                const juce::String& enabledParameterId,
+                                const juce::String& amountParameterId);
 
     void clear();
 
@@ -49,7 +50,10 @@ private:
     LayeringStage::Info layerInfo;
 
     juce::ToggleButton layeringToggle { "LAYERING ENABLED" };
+    juce::Slider amountSlider { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
+
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> layeringAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> amountAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WaveformDisplay)
 };

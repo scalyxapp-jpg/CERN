@@ -298,6 +298,7 @@ static constexpr auto* mixerSidechainDepth = "mixerSidechainDepth"; // 0–1, gl
 // Ans Ende angehaengt, damit bestehende Indizes stabil bleiben.
 // ============================================================================
 static constexpr auto* layeringEnabled = "layeringEnabled"; // bool
+static constexpr auto* layeringAmount  = "layeringAmount";  // 0–200 %, skaliert beide Layer
 
 /** Reihenfolge der Mixer-Parameter je Kanal (Gain, Low, MidLow, Mid, High, Mute). */
 inline constexpr std::array<const char*, 6> mixerParamOrder { "Gain", "Low", "MidLow", "Mid", "High", "Mute" };
@@ -485,6 +486,7 @@ inline const std::vector<juce::String>& getAllIDs()
         v.push_back (mixerSidechainDepth);
         // Automatisches Layering (1 Bool). Ganz am Ende, Indizes stabil.
         v.push_back (layeringEnabled);
+        v.push_back (layeringAmount);
         return v;
     }();
     return ids;

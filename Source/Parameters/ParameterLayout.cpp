@@ -373,9 +373,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     layout.add (std::make_unique<juce::AudioParameterBool> (
         ParameterIDs::layeringEnabled, "Layering Enabled", false,
         "Adds two automatically derived layers (depth + presence)"));
+    layout.add (addFloat (ParameterIDs::layeringAmount, "Layering Amount",
+                          { 0.0f, 200.0f, 1.0f }, 100.0f));
 
     // 1199 Basis-Parameter + 12 Module-Enables + 15 Material Room + 3 Feature
-    // + 78 Mixer + 1 Sidechain + 1 Layering = 1309 (siehe numLayoutParameters).
+    // + 78 Mixer + 1 Sidechain + 2 Layering = 1310 (siehe numLayoutParameters).
     jassert (getLayoutParameterCount() == numLayoutParameters);
 
     return layout;

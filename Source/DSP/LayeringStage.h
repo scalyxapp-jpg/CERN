@@ -34,6 +34,7 @@ public:
     struct Params
     {
         bool  enabled          { false };
+        float amountPct        { 100.0f }; ///< 0–200 %, skaliert beide Layer-Pegel
         float fundamentalHz    { 46.25f };
         float subLevel         { 0.58f };
         float subDecayMs       { 520.0f };
@@ -60,6 +61,7 @@ public:
         float highGainDb  { -120.0f };
         float highDelayMs { 0.0f };
         float density     { 0.0f };
+        float amountPct   { 100.0f };
         float baseTrimDb  { 0.0f };
     };
 

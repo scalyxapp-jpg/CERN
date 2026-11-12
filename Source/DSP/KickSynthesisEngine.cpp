@@ -1504,6 +1504,7 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
 
         LayeringStage::Params lp;
         lp.enabled         = layeringOn;
+        lp.amountPct       = smoothing.getById (ParameterIDs::layeringAmount);
         lp.fundamentalHz   = baseFundamentalHz;
         lp.subLevel        = subLevel;
         lp.subDecayMs      = subDecay;

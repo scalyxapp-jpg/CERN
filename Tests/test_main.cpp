@@ -3322,10 +3322,12 @@ struct LayeredCapture
 LayeredCapture renderLayeredKick (bool layering,
                                   float velocity = 1.0f,
                                   float pitchEnvDepth = 0.3f,
-                                  int blocks = 140)
+                                  int blocks = 140,
+                                  float amountPct = 100.0f)
 {
     EngineHarness harness;
     harness.setBool (ParameterIDs::layeringEnabled, layering);
+    harness.set (ParameterIDs::layeringAmount, amountPct);
     harness.set (ParameterIDs::pitchEnvDepth, pitchEnvDepth);
     harness.settle();
     harness.engine.trigger (velocity, 0.0f);
@@ -3543,6 +3545,41 @@ TEST (layering_keeps_loudness_across_factory_presets)
         CHECK (std::isfinite (onLufs));
         CHECK (std::abs (onLufs - offLufs) <= 1.0f);
     }
+}
+
+TEST (layering_amount_controls_layer_level)
+{
+    const auto off  = renderLayeredKick (false, 1.0f, 0.3f, 40);
+    const auto zero = renderLayeredKick (true, 1.0f, 0.3f, 40, 0.0f);
+    const auto one  = renderLayeredKick (true, 1.0f, 0.3f, 40, 100.0f);
+    const auto two  = renderLayeredKick (true, 1.0f, 0.3f, 40, 200.0f);
+
+    // 0 % ist exakt transparent: kein Layer, kein Basis-Trim.
+    CHECK (vectorPeak (zero.low) < 1.0e-9f);
+    CHECK (vectorPeak (zero.high) < 1.0e-9f);
+
+    double zeroDifference = 0.0;
+    for (size_t i = 0; i < juce::jmin (off.out.size(), zero.out.size()); ++i)
+        zeroDifference = juce::jmax (zeroDifference,
+                                     std::abs ((double) off.out[i] - (double) zero.out[i]));
+
+    CHECK (zeroDifference < 1.0e-7);
+
+    // 200 % hebt beide Layer deutlich an (Kompensation zieht mit).
+    const float lowOne  = vectorPeak (one.low);
+    const float lowTwo  = vectorPeak (two.low);
+    const float highOne = vectorPeak (one.high);
+    const float highTwo = vectorPeak (two.high);
+
+    CHECK (lowOne > 0.0f);
+    CHECK (highOne > 0.0f);
+    CHECK (lowTwo > lowOne * 1.5f);
+    CHECK (lowTwo < lowOne * 2.2f);
+    CHECK (highTwo > highOne * 1.5f);
+    CHECK (highTwo < highOne * 2.2f);
+
+    // Auch bei 200 % kein Overgain / kein reiner Lautheits-Sprung.
+    CHECK (std::abs (vectorRmsDb (two.out) - vectorRmsDb (off.out)) <= 1.5);
 }
 
 //==============================================================================

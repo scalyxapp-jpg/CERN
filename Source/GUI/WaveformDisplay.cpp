@@ -37,16 +37,37 @@ WaveformDisplay::WaveformDisplay()
     layeringToggle.setTitle ("Layering enabled");
     layeringToggle.setDescription ("Enable automatic two-layer layering");
     addAndMakeVisible (layeringToggle);
+
+    amountSlider.setRange (0.0, 200.0, 1.0);
+    amountSlider.setValue (100.0, juce::dontSendNotification);
+    amountSlider.setTextValueSuffix (" %");
+    amountSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 46, 18);
+    amountSlider.setTooltip ("Scales both auto layers (0 % = neutral, 200 % = double)");
+    amountSlider.setTitle ("Layering amount");
+    amountSlider.setDescription ("Amount of the two automatically derived layers");
+    amountSlider.setEnabled (false);
+    addAndMakeVisible (amountSlider);
+
+    layeringToggle.onStateChange = [this]
+    {
+        amountSlider.setEnabled (layeringToggle.getToggleState());
+        repaint();
+    };
 }
 
 void WaveformDisplay::attachLayeringControl (juce::AudioProcessorValueTreeState& apvts,
-                                             const juce::String& parameterId)
+                                             const juce::String& enabledParameterId,
+                                             const juce::String& amountParameterId)
 {
-    if (apvts.getParameter (parameterId) == nullptr)
-        return;
+    if (apvts.getParameter (enabledParameterId) != nullptr)
+        layeringAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
+            apvts, enabledParameterId, layeringToggle);
 
-    layeringAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
-        apvts, parameterId, layeringToggle);
+    if (apvts.getParameter (amountParameterId) != nullptr)
+        amountAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+            apvts, amountParameterId, amountSlider);
+
+    amountSlider.setEnabled (layeringToggle.getToggleState());
 
     resized();
     repaint();
@@ -129,6 +150,13 @@ void WaveformDisplay::resized()
     // Checkbox sitzt rechts in der Titelzeile.
     const int toggleW = juce::jmin (getWidth() - 24, 160);
     layeringToggle.setBounds (getWidth() - toggleW - 8, 5, toggleW, 18);
+
+    // Amount-Regler nur, wenn das Panel genug Platz hat (sonst ueber FEATURES).
+    const bool showAmount = getHeight() >= 112 && getWidth() >= 190;
+    amountSlider.setVisible (showAmount);
+
+    if (showAmount)
+        amountSlider.setBounds (74, 26, juce::jmin (getWidth() - 84, 150), 20);
 }
 
 //==============================================================================
@@ -188,6 +216,19 @@ void WaveformDisplay::paint (juce::Graphics& g)
 
     auto area = bounds.reduced (10.0f, 8.0f);
     area.removeFromTop (20.0f);
+
+    if (amountSlider.isVisible())
+    {
+        // Label links neben dem Amount-Regler.
+        g.setColour (CERNLookAndFeel::textColour.withAlpha (layeringToggle.getToggleState()
+                                                                ? 0.80f : 0.35f));
+        g.setFont (CERNLookAndFeel::getLabelFont());
+        g.drawText ("AMOUNT", juce::Rectangle<float> (area.getX(), area.getY() + 2.0f,
+                                                      60.0f, 16.0f),
+                    juce::Justification::centredLeft, false);
+
+        area.removeFromTop (24.0f);
+    }
 
     // Titel – nur wenn die Checkbox rechts nicht hineinragt (schmale Fenster).
     {

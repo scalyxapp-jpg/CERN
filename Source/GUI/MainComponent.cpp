@@ -140,7 +140,7 @@ MainComponent::MainComponent (CERNAudioProcessor& processorRef,
         ParameterIDs::oversampleEnabled,    ParameterIDs::fxWidth,
         ParameterIDs::compMix,              ParameterIDs::compAutoMakeup,
         ParameterIDs::envFollowAttack,      ParameterIDs::envFollowRelease,
-        ParameterIDs::layeringEnabled
+        ParameterIDs::layeringEnabled,      ParameterIDs::layeringAmount
     });
 
     addSection ("SIDECHAIN", { ParameterIDs::duckDepth, ParameterIDs::duckRelease });
@@ -163,7 +163,8 @@ MainComponent::MainComponent (CERNAudioProcessor& processorRef,
     // ---- Displays ----
     addAndMakeVisible (waveformDisplay);
     waveformDisplay.attachLayeringControl (processor.getAPVTS(),
-                                           ParameterIDs::layeringEnabled);
+                                           ParameterIDs::layeringEnabled,
+                                           ParameterIDs::layeringAmount);
     addAndMakeVisible (spectrumAnalyzer);
     addAndMakeVisible (envelopeEditor);
 

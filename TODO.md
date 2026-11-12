@@ -9,7 +9,9 @@
       Extremwert-Sweep (Sub/Click/Distortion/Drive am Anschlag) max. +0,81 dB
 - [x] Checkbox "LAYERING ENABLED" in der Waveform-Kopfzeile (+ Eintrag in FEATURES)
 - [x] Waveform-Anzeige ueberlagert beide Layer farbig mit Legende (Hz / ms / dB / Dichte)
-- [x] Parameter `layeringEnabled` am Ende von getAllIDs() (1309 gesamt, Indizes stabil)
+- [x] Parameter `layeringEnabled` + `layeringAmount` (0-200 %) am Ende von getAllIDs()
+      (1310 gesamt, Indizes stabil); Amount skaliert beide Layer, Kompensation folgt
+- [x] Amount-Regler im Waveform-Panel unter der Checkbox (ausgegraut, solange Layering aus)
 - [x] Tests: off-by-default, beide Layer tragen, kein Overgain/Lautheitssprung,
       Depth-Layer bis in den Tail, Presence kurz, Pitch-/Velocity-Modulation, 11 Presets
 

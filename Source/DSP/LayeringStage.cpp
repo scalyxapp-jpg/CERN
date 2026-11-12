@@ -129,6 +129,33 @@ void LayeringStage::updateDerived()
     lowW  = std::min (0.26f, lowW);
     highW = std::min (0.18f, highW);
 
+    // Layering Amount (0–200 %): skaliert beide Layer-Pegel. Die Kompensation
+    // wird mit denselben Gewichten gerechnet, bleibt also mitgezogen.
+    const float amount = std::min (2.0f, std::max (0.0f, params.amountPct * 0.01f));
+    info.amountPct = amount * 100.0f;
+
+    lowW  *= amount;
+    highW *= amount;
+
+    if (lowW + highW <= 1.0e-6f)
+    {
+        // Amount 0 %: exakt transparent (kein Trim, keine Layer).
+        baseTrim   = 1.0f;
+        lowWeight  = 0.0f;
+        highWeight = 0.0f;
+        info.lowGainDb  = -120.0f;
+        info.highGainDb = -120.0f;
+        info.baseTrimDb = 0.0f;
+
+        lowAttackCoeff  = timeCoeff (info.lowAttackMs, sampleRate);
+        lowDecayCoeff   = timeCoeff (info.lowDecayMs, sampleRate);
+        highAttackCoeff = timeCoeff (info.highAttackMs, sampleRate);
+        highDecayCoeff  = timeCoeff (info.highDecayMs, sampleRate);
+        highDelaySamples = std::max (0, (int) std::lround (info.highDelayMs * 0.001f
+                                                              * (float) sampleRate));
+        return;
+    }
+
     const float sumSq = lowW * lowW + highW * highW + 1.0f * lowW;
     baseTrim = 0.985f / std::sqrt (1.0f + sumSq);
 

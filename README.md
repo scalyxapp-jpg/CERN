@@ -458,7 +458,7 @@ Hinweis (MR-003/MR-004/MR-006): Steel ist ein **metallischer Resonator**, kein H
 
 Ein Kanal je klang-erzeugendem Modul. Reihenfolge und IDs (`mixer0Gain` … `mixer12Mute`,
 `mixerSidechainDepth`) stehen **am Ende** von `ParameterIDs::getAllIDs()`, damit
-bestehende Preset-/State-Indizes stabil bleiben (Gesamtzahl: **1309**).
+bestehende Preset-/State-Indizes stabil bleiben (Gesamtzahl: **1310**).
 
 | Kanal | Modul           | Parameter                                                                          |
 | ----- | --------------- | ---------------------------------------------------------------------------------- |
@@ -483,13 +483,14 @@ bestehende Preset-/State-Indizes stabil bleiben (Gesamtzahl: **1309**).
 - **Comp-Bypass**: Der COMP-Kanal führt auch im Bypass das Dry-Signal; das Ducking folgt dem Kick-Bus, nicht dem Kompressor-Gain-Reduction. Ducking bleibt daher bewusst aktiv, wenn der Compressor aus ist.
 - **Anzeige**: Jeder FX-Streifen zeigt im Kopf die Quelle und die aktuelle Tiefe live (`SC COMP -3.2 dB`, 20 Hz). Peak-Meter fallen mit 20 dB/s.
 
-### Layering (1 Parameter)
+### Layering (2 Parameter)
 
 | Parameter | Werte | Default | Bedeutung |
 | --------- | ----- | ------- | --------- |
 | `layeringEnabled` | Bool | aus | Blendet zwei automatisch abgeleitete Zusatz-Layer ein (L1 Depth + L2 Presence) |
+| `layeringAmount`  | 0–200 % | 100 % | Skaliert beide Layer-Pegel; die Pegelkompensation wird mitgezogen (0 % = exakt neutral) |
 
-Alle Layer-Werte sind **abgeleitet**, es gibt bewusst keine eigenen Regler:
+Alle Layer-Werte sind **abgeleitet**; der einzige Regler ist der Amount:
 
 - **L1 DEPTH** – Sinus auf `fundamentalHz` (bzw. eine Oktave darunter, wenn f0 ≥ 55 Hz),
   Attack aus `bodyAttack` (×0,8), Decay aus `subDecay` (×1,05), Pegel aus `subLevel`
@@ -498,6 +499,10 @@ Alle Layer-Werte sind **abgeleitet**, es gibt bewusst keine eigenen Regler:
   (1,4–7,2 kHz), Attack 0,6–4 ms, Decay aus `clickDecay` (×2,4, 14–110 ms) und
   0,6–9 ms Delay (Definition statt Doppelklick); Dichte aus `clickDistortion` +
   `driveAmount` steuert Rausch-/Ton-Anteil.
+- **Amount**: 0–200 % skaliert `k1`/`k2` vor der Kompensation; 0 % setzt Trim und Layer
+  exakt auf neutral (bit-identisch zu „aus"), 200 % verdoppelt die Layer-Gewichte bei
+  weiterhin mitgezogener Kompensation. Der Regler sitzt im Waveform-Panel unter der
+  Checkbox (und in der FEATURES-Sektion); er ist ausgegraut, solange Layering aus ist.
 - **Pegelneutral**: `baseTrim = 0.985 / sqrt(1 + k1² + k2² + k1)` (kohärente Addition
   des Depth-Layers auf dem Grundton) auf Membrane+Body; die Layer-Gewichte werden
   mit demselben Faktor skaliert.
