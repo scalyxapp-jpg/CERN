@@ -3546,6 +3546,67 @@ TEST (layering_keeps_loudness_across_factory_presets)
 }
 
 //==============================================================================
+// Auch bei extremen Modul-Einstellungen darf das Layering nicht "nur lauter"
+// werden: die Pegelkompensation muss den Worst Case abdecken.
+TEST (layering_extreme_settings_stay_within_one_db)
+{
+    struct ExtremeCase
+    {
+        const char* name;
+        float subLevel, clickLevel, clickDistortion, driveAmount, clickDecay;
+    };
+
+    const ExtremeCase cases[] =
+    {
+        { "all-max",      1.00f, 1.00f, 1.00f, 1.00f, 20.0f },
+        { "all-max-fast", 1.00f, 1.00f, 1.00f, 1.00f,  0.5f },
+        { "sub-max",      1.00f, 0.90f, 0.50f, 0.00f, 10.0f },
+        { "click-max",    0.20f, 1.00f, 1.00f, 1.00f, 20.0f },
+        { "quiet",        0.15f, 0.15f, 0.00f, 0.00f,  5.0f }
+    };
+
+    for (const auto& extreme : cases)
+    {
+        auto measure = [&extreme] (bool layering)
+        {
+            EngineHarness harness;
+            harness.setBool (ParameterIDs::layeringEnabled, layering);
+            harness.set (ParameterIDs::subLevel,        extreme.subLevel);
+            harness.set (ParameterIDs::clickLevel,      extreme.clickLevel);
+            harness.set (ParameterIDs::clickDistortion, extreme.clickDistortion);
+            harness.set (ParameterIDs::driveAmount,     extreme.driveAmount);
+            harness.set (ParameterIDs::clickDecay,      extreme.clickDecay);
+            harness.settle();
+            harness.engine.trigger (1.0f, 0.0f);
+
+            constexpr int blockSize = 512;
+            constexpr int numBlocks = 64; // ~0.68 s
+
+            juce::AudioBuffer<float> block (2, blockSize);
+            juce::AudioBuffer<float> full (2, numBlocks * blockSize);
+            full.clear();
+
+            for (int b = 0; b < numBlocks; ++b)
+            {
+                block.clear();
+                harness.render (block);
+                full.copyFrom (0, b * blockSize, block, 0, 0, blockSize);
+                full.copyFrom (1, b * blockSize, block, 1, 0, blockSize);
+            }
+
+            return LoudnessMeter::measureLufs (full, 48000.0);
+        };
+
+        const float offLufs = measure (false);
+        const float onLufs  = measure (true);
+
+        CHECK (std::isfinite (offLufs));
+        CHECK (std::isfinite (onLufs));
+        CHECK (std::abs (onLufs - offLufs) <= 1.0f);
+    }
+}
+
+//==============================================================================
 int main (int argc, char* argv[])
 {
     (void) argc; (void) argv;

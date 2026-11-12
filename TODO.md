@@ -5,7 +5,8 @@
 - [x] Alle Layer-Werte automatisch: Frequenz, Laenge, Attack, Decay, Pegel, Dichte, Bandlage, Delay
 - [x] Beide Layer folgen derselben Modulation wie die Basis (Pitch-Env, Glide, Velocity->Pitch, Velocity)
 - [x] Einspeisung am Membrane-Bus -> Tube/Drive/EQ/Comp, Mixer-Kanaele und Patchbay unveraendert
-- [x] Pegelneutral: teil-kohaerenter Basis-Trim; Messung ueber alle 11 Factory-Presets max. +0,79 dB
+- [x] Pegelneutral: teil-kohaerenter Basis-Trim; Messung alle 11 Factory-Presets max. +0,79 dB,
+      Extremwert-Sweep (Sub/Click/Distortion/Drive am Anschlag) max. +0,81 dB
 - [x] Checkbox "LAYERING ENABLED" in der Waveform-Kopfzeile (+ Eintrag in FEATURES)
 - [x] Waveform-Anzeige ueberlagert beide Layer farbig mit Legende (Hz / ms / dB / Dichte)
 - [x] Parameter `layeringEnabled` am Ende von getAllIDs() (1309 gesamt, Indizes stabil)
