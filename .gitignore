@@ -1,0 +1,18 @@
+# Build artefacts (CMake, JUCE artefacts, binaries)
+build/
+build-*/
+dist/
+
+# Tooling caches
+.ruff_cache/
+.cache/
+compile_commands.json
+
+# Stray captures at repo root
+/persisted-*.png
+*.log
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
