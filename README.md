@@ -1,0 +1,770 @@
+# C.E.R.N — Physical Modeling Techno Kick Drum VST3
+
+## Übersicht
+
+**C.E.R.N** ist ein physikalisch modellierter Techno-Kick-Drum-Synthesizer als VST3-Plugin (C++ + JUCE). Statt Samples wird eine kreisförmige Trommelfell-Membran über **modale Synthese** simuliert: Die Eigenfrequenzen der Membran folgen der Bessel-Funktionen-Nullstellentabelle (J₀, J₁, …) und werden auf die gewählte Grundfrequenz gestimmt. Jeder Modus schwingt als exponentiell abklingender Sinus mit individuellem Decay — genau wie eine echte Membran.
+
+## Forschung: Was einen Techno-Kick ausmacht
+
+Die folgenden Erkenntnisse aus der Schwingungslehre, klassischer Drum-Maschinen (TR-808 / TR-909) und modernem Industrial-Techno-Design sind direkt in den Algorithmus eingeflossen:
+
+### Frequenz-Grundlagen (recherchiert)
+
+| Bereich                   | Frequenz                                                   | Funktion                                        |
+| ------------------------- | ---------------------------------------------------------- | ----------------------------------------------- |
+| **Sub-Fundamental**       | **40–60 Hz** (Sweet Spot 40–50 Hz = E0 41,2 Hz – A0 55 Hz) | Tiefenfundament, körperlich spürbar             |
+| **Körper / Percussion**   | 80–100 Hz                                                  | Punch, „Fleisch“ des Kicks                      |
+| **Beater / Snap / Click** | 1,5–3,5 kHz                                                | Anschlag-Definition                             |
+| **Attack-Höhe**           | 2–5 kHz                                                    | Durchsetzungsvermögen auf kleinen Lautsprechern |
+| **Rumble-Cut**            | < 20–40 Hz (High-Pass)                                     | Unhörbarer Tiefbass entfernen                   |
+
+### Material-Frequenzbilder (hohle Körper)
+
+| Material   | Frequenzbild                   | Charakter                           | Decay  |
+| ---------- | ------------------------------ | ----------------------------------- | ------ |
+| **Holz**   | Hollowness 200–400 Hz          | Warm, Mahagoni dunkel, Ahorn heller | Mittel |
+| **Metall** | 800–2000 Hz Klingen            | Weniger Resonanz, mehr Brightness   | Kurz   |
+| **Acryl**  | Kaum Resonanz, direkter Attack | Lauter, punchiger als Holz          | Mittel |
+| **Beton**  | 100–200 Hz, sehr dumpf         | Starkes High-Cut                    | Lang   |
+| **Glas**   | 2000–5000 Hz, klingelnd        | Hell, metallisch                    | Kurz   |
+| **Stein**  | 300–600 Hz, dumpfig            | Mittlerer Charakter                 | Mittel |
+
+### Reverb / Modulation Stage
+
+Ein **FDN (Feedback Delay Network)**-basierter Reverb mit material-spezifischer Farbierung:
+
+- Jedes Material hat einen eigenen Material-EQ vor dem Reverb (Hollowness bei Holz, Klingen bei Metall, etc.)
+- Unterschiedliche RT60-Decay-Kurven pro Material
+- Pre-Delay, Size, Damping, Mix, Low/High-Cut frei einstellbar
+- Techno-typisch: Low-Cut ~120 Hz, High-Cut ~800 Hz (um Mud im Mix zu vermeiden)
+- Sidechain-kompatibel durch klare Trennung von Trocken- und Nasssignal
+
+### Klassische Maschinen als Referenz
+
+- **TR-909** (Pitch-Envelope derzeit linear, exponentieller Decay **in Arbeit**): Einzelner Sinus-Oszillator + Pitch-Envelope (hoch → tief Glissando) + Amplituden-Envelope. Attack regelt die Glissando-Geschwindigkeit, Tune die Endfrequenz, Decay die Dauer. Im aktuellen Build läuft der Decay linear; `Pitch Curve` verbiegt nur den Attack. Geplant ist der exponentielle Decay `exp(-(t-a)/(d/4.605))` mit Kurve auf Attack **und** Decay (SND-022/SND-023), damit der Glissando-Verlauf dem 909/808-Vorbild entspricht.
+- **TR-808**: Reiner Sinus ohne Filterung, schneller Pitch-Decay (20–70 ms) für den typischen Click, langer Decay für den „Jeep Drone“.
+
+### Hollow Steel / Industrial Kick
+
+- **Wave-Folding** statt einfaches Clipping erzeugt komplexere Obertöne und den metallischen Charakter.
+- Verzerrter Low-End, **Hohlkörper-Resonanz** (Luftkavity mit schmalem Resonanz-Pick, f ~ 1/D), spätes Raum-Rumble.
+- Mehrstufige Verarbeitung verändert das Envelope und die Harmonische Struktur.
+
+### Physische Modellierung der Membran
+
+- Grundfrequenz nach Schwingungslehre: **f₁ ≈ 0,766 · T / (σ · D)**  
+  (T = Spannung, σ = Flächenmasse, D = Durchmesser)
+- **Nichtlineare Spannungs-Modulation** (nach von Kármán / Berger): Bei hoher Anregungsamplitude dehnt sich die Membran → effektive Spannung steigt → alle Teillast-Frequenzen gleiten nach oben (Pitch-Glide), beim Ausklingen zurück.
+- **Hohlkörper-Kopplung**: Eine Luftkavity mit schmalem Resonanz-Pick wird über einen Kopplungsfaktor mit der Membran vermischt → typisch hohler, metallischer Sound.
+
+### Spatial / Club-Tauglichkeit
+
+- Club-Sound-Systeme sind überwiegend **mono** (insbesondere unter 150 Hz).
+- Mono-Kompatibilität ist essenziell; Low-End sollte unter einer einstellbaren Grenzfrequenz (Default 120 Hz) auf Mono gemischt werden (Mid/Side-Verarbeitung).
+- Stereobreite nur im Obertönbereich, nicht im Sub.
+
+---
+
+## Higgs-Feld: Materiephysik als Klangmodulation
+
+### Die Physik (Fakten)
+
+Das Higgs-Feld Φ ist ein **Skalarfeld**, das den gesamten Raum durchdringt. Sein
+Potential lautet
+
+```
+V(Φ) = μ²|Φ|² + λ|Φ|⁴        mit μ² < 0
+```
+
+Dadurch hat V(Φ) die Form eines **Mexican Hat** (Sombrero): in der Mitte
+(Φ = 0) liegt ein lokaler **Potentialberg**, auf einem Ring bei
+
+```
+|Φ| = v = 246,22 GeV        (Vakuumerwartungswert, VEV)
+```
+
+das **Minimum**. Der Grundzustand des Universums ist nicht Φ = 0, sondern
+Φ = v — die **spontane Symmetriebrechung**. Teilchen erhalten ihre **Masse**
+durch die Kopplung an dieses Feld, quantifiziert über die **Yukawa-Kopplung**:
+
+```
+m_f = y_f · v / √2
+```
+
+Die Kopplungsstärken sind extrem hierarchisch (Top-Quark y ≈ 1,0,
+Elektron y ≈ 2,9·10⁻⁶). Die Anregung des Feldes um sein Minimum ist das
+**Higgs-Boson** mit m_H = 125,35 GeV und einer Zerfallsbreite Γ ≈ 4,1 MeV
+(Lebensdauer ~1,6·10⁻²² s). Der Selbstkopplungs-Term λ folgt aus
+λ = m_H² / (2v²) ≈ 0,129.
+
+Der Schlüssel für die musikalische Übertragung ist die **Äquivalenz von
+Energie und Masse**:
+
+```
+E = m·c²      ↔      E = h·f
+```
+
+**Frequenz ist Energie ist Masse.** Ein tiefer Ton trägt physikalisch mehr
+Energie pro Quant — und klingt in unserer Wahrnehmung „schwer", träge,
+lang nachklingend. Genau diese Hierarchie bildet das Plugin ab.
+
+### Die musikalische Übertragung (Materie → Klang)
+
+| Physik                             | Klang-Entsprechung im Plugin                                                      |
+| ---------------------------------- | --------------------------------------------------------------------------------- |
+| Higgs-Feld Φ durchdringt den Raum  | Der Effekt liegt **hinter** der Klangerzeugung und formt den gesamten Kick        |
+| Φ/v = Feldwert                     | **„Sein" des Kicks**: wie massiv, substanziell und sustainreich er ist            |
+| Φ → 0 (symmetrische Phase)         | **Masselos**: Kick ist dünn, transient, „durchscheinend" (Bänder stark gedämpft)  |
+| Φ ≈ v (Potentialminimum)           | **Gebrochene Phase**: volle Masse/Präsenz, maximale Trägheit                      |
+| V(Φ) Potententialberg in der Mitte | Sättigung/Nichtlinearität (Selbstkopplung λ) — der Kick „kollabiert" in die Mitte |
+| Yukawa-Hierarchie y_f              | Frequenzbänder koppeln unterschiedlich stark ans Feld                             |
+| m_H = 125,35 GeV                   | **125,35 Hz** als Boson-Resonanz-Anker (Peak mit wählbarer Q)                     |
+| Zerfallsbreite Γ                   | Resonanzbreite Q ∝ 1/Γ und „Ausklingen" des Effekts                               |
+| λ Selbstkopplung                   | Nichtlineare Rückkopplung der Bänder — Oberton-Reichtum/Substanz                  |
+| Spontane Symmetriebrechung         | Der Kick „wählt" einen Grundzustand: mit oder ohne Masse                          |
+
+### Die fünf „Teilchen" des Kicks
+
+Die Frequenzbänder sind als Teilchen mit absteigender Yukawa-Kopplung angeordnet
+(abgeleitet aus E = h·f ↔ E = m·c²):
+
+| Band      | Frequenz    | Teilchen-Analogie | Yukawa (normiert) | Klang-Charakter                       |
+| --------- | ----------- | ----------------- | ----------------- | ------------------------------------- |
+| **Sub**   | 20–80 Hz    | Top-Quark         | 1,00              | Schwerste Trägheit, maximaler Sustain |
+| **Body**  | 80–250 Hz   | Bottom-Quark      | 0,55              | Gewicht, Wärme, „Fleisch"             |
+| **Punch** | 250–1500 Hz | Charm-Quark       | 0,32              | Attack-Schärfe, Durchsetzung          |
+| **Click** | 1,5–5 kHz   | Tau-Lepton        | 0,14              | Anschlag, Beater-Textur               |
+| **Air**   | 5–20 kHz    | Elektron          | 0,05              | Fast masselos, nur Luft/Glanz         |
+
+### Die interaktive 3D-Fläche (Mexican Hat)
+
+Die GUI zeigt das Higgs-Potential als 3D-Oberfläche (Mexican Hat):
+
+- **Der Cursor kann mit der Maus an beliebige Positionen gezogen werden.**
+  Beim Ziehen werden **alle Higgs-Parameter live aus der Cursorposition abgeleitet**
+  und in die APVTS geschrieben (Φ/Θ direkt, alle anderen Werte als Funktion davon):
+  Field Strength (1-φ), VEV (radiale Position → 0,2 … 0,95), λ-Self-Coupling,
+  Inertia (sin(π·φ)), Yukawa-Boost, Boson-Frequenz (100–140 Hz) und Boson-Q,
+  Symmetry (sin(π·Θ)), Decay (0,5…1) und Mix (|sin(2π·φ)|).
+- Alle **13 Parameter sind im Display selbst sichtbar** (Wireframe + numerische
+  Spalte rechts) und ändern sich in Echtzeit, sobald sie geändert werden:
+  VEV → Radius des gestrichelten Minimums-Rings, λ → Wandsteilheit,
+  Strength → Kuppelhöhe, Symmetry → Verkippung der Fläche, Yukawa →
+  Partikel-Dichte, Decay → Geister-Ringe, Mix → gefülltes Wet/Dry-Volumen,
+  Boson Hz/Q → Resonanz-Ring, Inertia → Glow des Cursors.
+- **HIGGS FIELD**-Knob in der Sektion oder per Checkbox in der GUI → Effekt an/aus.
+- Der **VEV-Ring** (Minimum) leuchtet als gestrichelter Kreis; die Kuppel in der Mitte
+  glüht; außen fällt die Fläche wieder ab.
+- Die fünf Teilchen sitzen als Punkte am Rand; ihre Helligkeit zeigt die
+  aktuelle Yukawa-Kopplung.
+
+**Bedienlogik in einem Satz:** Ziehe den Cursor auf den VEV-Ring → der Kick
+bekommt maximale Masse/Substanz. Ziehe ihn ins Zentrum (Φ→0, oder SYMM auf 1)
+→ der Kick entmaterialisiert zum transienten, dünnen Impuls. Der Winkel θ
+bestimmt, _welches_ Frequenzband gerade am stärksten an das Feld andockt —
+also ob der Sub, der Punch oder die Luft „die Masse trägt".
+
+### Parameter
+
+| Parameter        | Bereich             | Bedeutung                                 |
+| ---------------- | ------------------- | ----------------------------------------- |
+| Higgs Field On   | an/aus              | Effekt aktiv                              |
+| Field Φ/v        | 0–1                 | Cursor radial (auch direkt per 3D-Fläche) |
+| Yukawa Angle θ   | 0–360°              | Frequenzfokus (welches Band koppelt)      |
+| Field Strength   | 0–1                 | Globale Kopplungsstärke                   |
+| VEV (v)          | 0,2–0,95 (×246 GeV) | Lage des Minimumrings (Anzeige in GeV)    |
+| Self-Coupling λ  | 0–1 (≈0–0,129)      | Nichtlineare Selbstkopplung/Sättigung     |
+| Inertia          | 0–1                 | Trägheit → Sustain pro Band               |
+| Yukawa Boost     | 0–1                 | Verstärkung der θ-Fokus-Kopplung          |
+| Boson m_H        | 100–140 Hz          | Resonanzfrequenz (Default 125 Hz)         |
+| Boson Q          | 1–30                | Resonanzgüte (∝ 1/Γ)                      |
+| Symmetry Restore | 0–1                 | 1 = symmetrische Phase (masselos)         |
+| Decay Rate Γ     | 0–1                 | Zerfallsrate → Resonanzbreite             |
+| Wet/Dry Mix      | 0–1                 | Effektanteil                              |
+
+### Factory-Presets mit Higgs-Feld-Setup
+
+Drei Factory-Presets enthalten vollständige Higgs-Feld-Einstellungen und Parameter-CV-Kabel:
+
+| Preset                   | Higgs-Setup                                   | Klang / Modulation                                            |
+| ------------------------ | --------------------------------------------- | ------------------------------------------------------------- |
+| **CV Pulse Kick**        | Higgs Mix 0.12, Feld 0.60, Boson 103,8 Hz/Q 8 | Body-Level → Drive-Mix; Higgs aktuell aus (bis SND-117)       |
+| **Higgs Mod Kick**       | Higgs Mix 0.15, Feld 0.80, Boson 92,5 Hz/Q 8  | Vier CV-Kabel auf Higgs-Stärke, Higgs-Mix, Room und Symmetrie |
+| **Parameter Patch Kick** | Higgs Mix 0.12, Feld 0.55, Boson 116,5 Hz/Q 8 | Higgs-Stärke → Boson-Q; Diode-Drive mit Pre-HP                |
+
+Hinweis: SND-117 (Higgs liefert nur Wet) ist umgesetzt. `higgsEnabled` ist deshalb in
+fuenf der sieben Factory-Presets **1** (Deep Techno Kick, Tight Techno, CV Pulse Kick,
+Higgs Mod Kick, Parameter Patch Kick); `Hard Acid Kick` und `808 Boomy` halten es bewusst
+auf 0. Die Higgs-Settings und CV-Kabel sind in allen CV-Presets enthalten.
+
+---
+
+## Tech Stack
+
+- **C++20**, JUCE Framework (via `FetchContent` aus GitHub `develop`)
+- **VST3** (nur dieses Format; CLAP/AU/Standalone leicht erweiterbar)
+- CMake Build, optionale AddressSanitizer/UBSan-Laeufe (`-DCERN_SANITIZE=ON`)
+- Projekt-eigene Unit-Test-Harness (`Tests/test_main.cpp`, ~1,17 Mio. Assertions)
+
+## Projektstruktur
+
+```
+CERN/
+├── CMakeLists.txt              # Root-CMake, JUCE-FetchContent, CPack
+├── Source/
+│   ├── CMakeLists.txt          # Plugin-Target + Quellen + BinaryData
+│   ├── PluginProcessor.{h,cpp} # AudioProcessor (APVTS, Prozessblock, Zustand)
+│   ├── PluginEditor.{h,cpp}    # Editor-Fenster
+│   ├── PluginEntry.cpp         # createPluginFilter() Entry-Point
+│   ├── DSP/
+│   │   ├── MembraneModel.h     # Kreisförmige Membran: Bessel-Modalbank, Nonlinearität, f1≈0.766·T/(σ·D)
+│   │   ├── PitchEnvelope.h     # Pitch-Glide-Envelope (TR-909/808-Style)
+│   │   ├── ClickGenerator.h    # Beater-Impact (Noise+Sine, 3 Materialien)
+│   │   ├── TubeResonator.h     # Hohlkörper-/Röhren-Resonanz (Hollow Steel)
+│   │   └── KickSynthesisEngine.{h,cpp} # Vollsignalfluss
+│   ├── Parameters/
+│   │   ├── ParameterIDs.h      # 1229 Parameter-IDs (Reihenfolge = APVTS-Index)
+│   │   ├── ParameterLayout.h   # Default-Werte
+│   │   ├── ParameterLayout.cpp # APVTS Parameter-Layout
+│   │   └── ParameterSmoothing.h # Click-free exponentielle Glättung
+│   ├── GUI/
+│   │   ├── MainComponent.{h,cpp}     # Sektionen (Membrane…Global/Sequencer) + Visualisierungen, HeaderBar mit Preset-Auswahl
+│   │   ├── SectionPanel.{h,cpp}      # Titelierte Panel-Container (3D)
+│   │   ├── ParamKnob.{h,cpp}         # 3D-Drehregler + Wert-Chip
+│   │   ├── CERNFader.{h,cpp}         # 3D-Fader (Mix-/Breiten-Parameter)
+│   │   ├── LogoComponent.{h,cpp}     # Emblem-Asset + Vektor-Wortmarke
+│   │   ├── WaveformDisplay.h         # Letzte Attack-Wellenform
+│   │   ├── SpectrumAnalyzer.h        # Log-spacing Spektralbalken 20 Hz–18 kHz
+│   │   ├── EnvelopeEditor.h          # Pitch-Envelope Kurve
+│   │   ├── PatchView.{h,cpp}         # Rückseite: Audio-Patch
+│   │   ├── ParameterPatchView.{h,cpp}# Parameter-CV-Patch
+│   │   ├── HiggsField3D.{h,cpp}      # Interaktive Mexican-Hat-Fläche
+│   │   ├── Theme/CERNLookAndFeel.{h,cpp} # Theme, 3D-Rotary/Linear/Toggle/Panels
+│   │   └── Preview/PreviewMain.cpp   # Headless-Render der GUI nach PNG
+│   ├── Assets/                       # Logo + Texturen (BinaryData)
+│   └── Presets/
+│       └── PresetManager.{h,cpp}     # 7 Factory-Presets (Code-Snapshots) + User-Save
+├── Tests/
+│   ├── CMakeLists.txt
+│   └── test_main.cpp                 # Unit-Tests (DSP, Patches, Presets, Engine-Integration)
+└── build/                            # CMake Build-Dir (gitignoren)
+```
+
+## Commands
+
+### Erstmaliges Konfigurieren & Bauen (Release)
+
+```bash
+cd /data/projekte/Kickdrum
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc) --target CERN_VST3
+```
+
+Ergebnis:
+
+```
+build/Source/CERN_artefacts/Release/VST3/CERN.vst3/
+  Contents/x86_64-linux/CERN.so
+```
+
+### Debug-Build (mit AddressSanitizer + UBSan)
+
+```bash
+cmake -B build-debug -DCMAKE_BUILD_TYPE=Debug -DCERN_SANITIZE=ON
+cmake --build build-debug -j$(nproc) --target CERNTests
+./build-debug/Source/CERNTests
+```
+
+`CERN_WERROR` ist standardmäßig **aus**; die Projekt-Warnflags (`-Wall -Wextra -Wpedantic -Wshadow -Wconversion`)
+gelten nur für die eigenen Targets, nie für JUCE.
+
+### Unit-Tests
+
+```bash
+cmake --build build -j$(nproc) --target CERNTests
+./build/Source/CERNTests
+# oder via ctest:
+cd build && ctest --output-on-failure
+```
+
+### VST3 laden & smoke-test (ohne Host)
+
+```bash
+g++ /tmp/user/1000/opencode/test_vst3_load.cpp -o /tmp/user/1000/opencode/test_vst3_load -ldl
+/tmp/user/1000/opencode/test_vst3_load
+# Erwartet: loaded=0x… GetPluginFactory=0x…
+```
+
+## Parameter (komplett, 1229)
+
+Quelle der Defaults: `DefaultValues` in `Source/Parameters/ParameterLayout.h`;
+Bereiche und Schrittweiten aus dem APVTS-Layout in
+`Source/Parameters/ParameterLayout.cpp` (Stand 2026-11-12).
+
+### Membrane / Physical Model
+
+| ID                    | Bereich       | Default | Bedeutung                       |
+| --------------------- | ------------- | ------- | ------------------------------- |
+| Membrane Tension      | 0–1           | 0.50    | Spannung T [N/m]                |
+| Membrane Radius       | 0.05–0.5 m    | 0.15    | Radius (D = 2·R)                |
+| Membrane Mass         | 0.1–2.0 kg/m² | 1.00    | Flächenmasse σ                  |
+| Membrane Damping      | 0–1           | 0.30    | Abschwächung                    |
+| Membrane Modes        | 1–12          | 5       | Anzahl Modi                     |
+| Fundamental           | 25–180 Hz     | 60 Hz   | Sweet Spot 40–50 Hz             |
+| Membrane Nonlinearity | 0–1           | 0.15    | Pitch-Glide bei hoher Amplitude |
+| Membrane Stiffness    | 0–1           | 0.15    | Steifigkeit / Obertön-Anteil    |
+
+### Hollow Steel / Tube Resonance
+
+| ID                   | Bereich   | Default | Bedeutung                              |
+| -------------------- | --------- | ------- | -------------------------------------- |
+| Tube Resonance Freq  | 40–400 Hz | 120 Hz  | Hohlkörper-Resonanz, Ratio 2 bei 60 Hz |
+| Tube Resonance Q     | 0.5–20    | 8       | Güte / Schmalheit des Picks            |
+| Tube Resonance Level | 0–1       | 0.40    | Anteil Hohlkörper                      |
+| Tube Coupling        | 0–1       | 0.50    | Kopplungsstärke Membran↔Röhre          |
+| Hollow Metallic      | 0–1       | 0.30    | Metallischer Hohlklanganteil           |
+
+### Pitch Envelope (TR-909/808)
+
+| ID           | Bereich    | Default | Bedeutung                 |
+| ------------ | ---------- | ------- | ------------------------- |
+| Pitch Attack | 0.1–50 ms  | 0.2 ms  | Glissando-Geschwindigkeit |
+| Pitch Decay  | 20–1500 ms | 60 ms   | exponentieller Decay      |
+| Pitch Depth  | 0–2        | 0.80    | Glide-Tiefe (+24 st max)  |
+| Pitch Curve  | -1–1       | 0.00    | Kurven-Form               |
+
+Der Decay ist derzeit linear; der exponentielle Decay (SND-022) ist **in Arbeit**.
+
+### Click / Beater
+
+| ID                    | Bereich          | Default | Bedeutung          |
+| --------------------- | ---------------- | ------- | ------------------ |
+| Click Level           | 0–2              | 0.80    | Anschlag-Pegel     |
+| Click Decay           | 0.5–30 ms        | 4.0 ms  | Decay              |
+| Click Tone            | 0–1              | 0.35    | Dunkel → Hell      |
+| Click Distortion      | 0–1              | 0.20    | Soft-Saturation    |
+| Click Beater Material | Soft/Medium/Hard | Medium  | Anschlags-Material |
+
+### Body
+
+| ID          | Bereich    | Default | Bedeutung    |
+| ----------- | ---------- | ------- | ------------ |
+| Body Level  | 0–1        | 0.65    | Körper-Pegel |
+| Body Attack | 0.5–10 ms  | 0.8 ms  | Attack       |
+| Body Decay  | 50–4000 ms | 450 ms  | Decay        |
+| Body Tuning | 0.5–2      | 1.00    | Stimmfaktor  |
+
+### Sub Oscillator (40–60 Hz Sweet Spot)
+
+| ID         | Bereich              | Default | Bedeutung  |
+| ---------- | -------------------- | ------- | ---------- |
+| Sub Level  | 0–1                  | 0.30    | Sub-Pegel  |
+| Sub Decay  | 50–3000 ms           | 350 ms  | Decay      |
+| Sub Detune | -50–+50 cents        | 0       | Detuning   |
+| Sub Shape  | Sine/Triangle/Square | Sine    | Wellenform |
+
+### Drive / Saturation (inkl. Wave-Folding)
+
+| ID              | Bereich                        | Default | Bedeutung                    |
+| --------------- | ------------------------------ | ------- | ---------------------------- |
+| Drive Amount    | 0–1                            | 0.40    | Verzerrungsmenge             |
+| Drive Mix       | 0–1                            | 0.45    | Trocken/Nass-Mischung        |
+| Drive Character | Tube/Diode/Fuzz/WaveFold/Alias | Tube    | Verzerrungs-Typ              |
+| Drive Pre HP    | 0–1                            | 0.0     | Pre-Drive Highpass (0 = aus) |
+
+### EQ (Sub 40–60, Punch 80–100 & 2–5 kHz, Air)
+
+| ID            | Bereich     | Default | Bedeutung                |
+| ------------- | ----------- | ------- | ------------------------ |
+| EQ Sub Freq   | 20–200 Hz   | 50 Hz   | Sub-Frequenz (trackt f0) |
+| EQ Sub Gain   | -12–12 dB   | +2 dB   | Sub-Gain                 |
+| EQ Punch Freq | 500–8000 Hz | 2800 Hz | Punch-Frequenz           |
+| EQ Punch Gain | -12–12 dB   | +3 dB   | Punch-Gain               |
+| EQ Air Freq   | 4–16 kHz    | 10 kHz  | Air-Frequenz             |
+| EQ Air Gain   | -12–12 dB   | 0 dB    | Air-Gain                 |
+| EQ Rumble HP  | 15–120 Hz   | 25 Hz   | Rumble-Cut               |
+
+### Compressor
+
+| ID             | Bereich    | Default | Bedeutung   |
+| -------------- | ---------- | ------- | ----------- |
+| Comp Threshold | -60–0 dB   | -8 dB   | Schwelle    |
+| Comp Ratio     | 1–20 :1    | 3:1     | Verhältnis  |
+| Comp Attack    | 0.1–100 ms | 10 ms   | Attack      |
+| Comp Release   | 10–1000 ms | 120 ms  | Release     |
+| Comp Knee      | 0–12 dB    | 6 dB    | Knie        |
+| Comp Makeup    | -12–+24 dB | 0 dB    | Makeup-Gain |
+
+### Output / Spatial
+
+| ID                | Bereich    | Default | Bedeutung            |
+| ----------------- | ---------- | ------- | -------------------- |
+| Output Gain       | -60–+12 dB | 0 dB    | Ausgangs-Pegel       |
+| Output Pan        | -1–1       | 0       | Panorama             |
+| Output Width      | 0–1        | 1.0     | Stereobreite (M/S)   |
+| Output Mono Below | 40–200 Hz  | 150 Hz  | Mono-Kreuzung (Club) |
+| Output Clip       | 0–1        | 0.35    | Soft-Clip            |
+| Output Limiter    | 0–1        | 0.15    | Peak-Limiter         |
+
+### Room / Late Rumble (Hollow Industrial)
+
+| ID          | Bereich    | Default | Bedeutung      |
+| ----------- | ---------- | ------- | -------------- |
+| Room Level  | 0–1        | 0.0     | Raum-Charakter |
+| Room Decay  | 50–2000 ms | 350 ms  | Raum-Decay     |
+| Room Rumble | 0–1        | 0.30    | Spätes Rumble  |
+
+### Reverb / Modulation Stage (Hollow Material Verbs)
+
+| ID               | Bereich                                      | Default | Bedeutung                 |
+| ---------------- | -------------------------------------------- | ------- | ------------------------- |
+| Reverb Material  | None/Wood/Metal/Plastic/Concrete/Glass/Stone | None    | Hohlkörper-Material       |
+| Reverb Pre-Delay | 0–150 ms                                     | 30 ms   | Vorverzögerung            |
+| Reverb Decay     | 200–5000 ms                                  | 1200 ms | RT60 Basis (Material-Mul) |
+| Reverb Size      | 0–1                                          | 0.50    | Raumgröße                 |
+| Reverb Damping   | 0–1                                          | 0.30    | High-Freq Absorption      |
+| Reverb Mix       | 0–1                                          | 0.15    | Wet/Send-Return           |
+| Reverb Low Cut   | 20–500 Hz                                    | 150 Hz  | Rumble-Cut im Reverb      |
+| Reverb High Cut  | 1000–16000 Hz                                | 6000 Hz | High-Cut im Reverb        |
+| Reverb Freeze    | On/Off                                       | Off     | Tail einfrieren           |
+| Reverb Gate      | 0–500 ms                                     | 0 ms    | Gate (0 = aus)            |
+
+### Material Room + Sub Grumble (Wet-Only, kein Druckverlust)
+
+Material-physikalisch relativiertes Raummodell (Delay = L/c, Feedback aus Absorption α,
+Damping aus α und Dichte). Das Modul liefert **ausschließlich Wet**; der Dry-Bus bleibt
+unangetastet, der Wet-Return hat einen 100-Hz-Highpass 2. Ordnung (keine Sub-Antilphase). Layer:
+Kick / Rumble / beides.
+
+| ID                    | Bereich                                  | Default    | Bedeutung                                  |
+| --------------------- | ---------------------------------------- | ---------- | ------------------------------------------ |
+| MaterialRoom Material | Water/Wood/Plastic/Steel/Concrete/Fabric | Wood       | c: 1480/3960/2750/5940/3700/250 m/s        |
+| MaterialRoom Size     | 1–30 m                                   | 8.0 m      | Raumtiefe; Tap-Delay = L/c                 |
+| MaterialRoom Mix      | 0–1                                      | 0.0        | Wet-Return                                 |
+| MaterialRoom Layer    | Kick/Rumble/Both                         | Both       | Welche Eingänge den Raum speisen           |
+| MaterialRoom Width    | 0–1                                      | 0.50       | M/S-Breite des Wet (0.5 neutral, Cap 1.75) |
+| Grumble Level         | 0–1                                      | 0.0        | Sub-Grummen (unabhängig vom Room-Mix)      |
+| Grumble Freq          | 20–120 Hz                                | 45 Hz      | Sub-Oszillator                             |
+| Grumble Rate          | 0.05–8 Hz                                | 0.5 Hz     | Pan-LFO-Frequenz                           |
+| Grumble Depth         | 0–1                                      | 0.5        | Pan-Schwung (0 = Mitte A/B)                |
+| Grumble Pan A / B     | -1–1                                     | -0.5 / 0.5 | Endpunkte A → B                            |
+| Grumble Wave          | Sine/Triangle/Square                     | Sine       | Sub-Oszillator-Waveform                    |
+| Grumble Pan Wave      | Sine/Triangle/Square/Saw                 | Sine       | Pan-LFO-Waveform                           |
+| Grumble Decay         | 0.1–2 s                                  | 0.5 s      | Hüllkurve des Grummens                     |
+
+Hinweis (MR-003/MR-004/MR-006): Steel ist ein **metallischer Resonator**, kein Hall. Der Wet-Pfad ist mit einem LowCut bei 100 Hz (2. Ordnung) geschuetzt, damit er den 20–100-Hz-Druck des Dry-Signals nicht ausloescht oder aufblaeht; Sub-Druck kommt ausschliesslich aus dem Dry-Signal. Bei hohem Mix bleibt trotzdem Gain-Staging sinnvoll. α unverändert. Modell ist **phänomenologisch** (Material-Charakter als Klangmetapher), keine raumakustische Simulation. **MR-013:** Width 0.5 = neutral, Seitenfaktor gekappt auf max 1.75 bei Width 1.0. **MR-020/056:** `IN KICK = CompOut` (Pre-Output), `IN RUMBLE = RoomOut` (Room-Tail; bei ROOM-Off stumm). **MR-030:** Grumble-Pan nutzt konstante Pan-Leistung (cos/sin). **MR-031:** Grumble-Pan geslewtes (~5 ms). **MR-033:** `grumbleLevel > 0.7` kann stark im Sub auftragen — Gain-Staging beachten. **MR-035:** starker Kick-Transient randomisiert Grumble-Phase deterministisch per LCG. **MR-043:** Size-Sweep erzeugt metallischen Comb-Sweep/Wub. **MR-050/053:** verifiziert (Verhalten entspricht Spezifikation). **MR-051:** **CV:** Velocity → `grumbleLevel` (über Parameter-CV/Modulation). **MR-052:** Pan A/B Endpunkte, Depth 0 = Mitte zwischen A und B. **MR-095:** Layer Rumble hängt von RoomOut/Room ab; bei ausgeschaltetem ROOM ist der Rumble-Eingang stumm. **MR-040/041/042/005:** bewusst unverändert (Materialtabelle/α, kein Dry-Eingriff, kein Fan-in-Normalisierung, keine impliziten Claims).
+
+### Step Sequencer (16 Schritte)
+
+| ID                                   | Bereich                      | Default           | Bedeutung                                                         |
+| ------------------------------------ | ---------------------------- | ----------------- | ----------------------------------------------------------------- |
+| Sequencer BPM                        | 40–240 BPM                   | 128               | Tempo                                                             |
+| Sequencer Play                       | an/aus                       | aus               | Start/Stop                                                        |
+| Sequencer Steps                      | 1–64                         | 16                | Anzahl Schritte                                                   |
+| Sequencer Swing                      | 0–0.75                       | 0                 | Swing-Groove (50–75 %)                                            |
+| Sequencer Sync                       | Internal/Host                | Internal          | Host-Transport-Sync                                               |
+| Sequencer Grid                       | 1/16, 1/8T, 1/16T            | 1/16              | Notenraster                                                       |
+| Sequencer Pattern                    | A–D                          | A                 | Aktives Pattern                                                   |
+| Sequencer Chain                      | 0–8                          | 0 (aus)           | Pattern-Kette                                                     |
+| Sequencer Clock                      | an/aus                       | aus               | MIDI-Clock/Start/Stop                                             |
+| Step Vel (0–15)                      | 0–1                          | 1.0 (alle)        | Schlagstärke                                                      |
+| Step Gate (0–15)                     | an/aus                       | Steps 1/5/9/13 an | Schritt an/aus                                                    |
+| Step Pitch (0–15)                    | -24–+24 st                   | 0                 | Pitch-Offset (Halbtöne)                                           |
+| Step Ratchet/Flam/Probability/Length | 1–4 / 0–50 ms / 0–1 / 0.25–4 | 1 / 0 / 1 / 1     | 4 Patterns × 64 Slots (Parameter vorhanden; Step-Editor-UI offen) |
+
+### Global
+
+| ID                   | Bereich         | Default       | Bedeutung                 |
+| -------------------- | --------------- | ------------- | ------------------------- |
+| Root Note            | 0–127           | F#1 (MIDI 30) | Grundnote = f0            |
+| Velocity Sensitivity | 0–1             | 0.60          | Velocity-Empfindlichkeit  |
+| Key Root             | 0–11            | 0 (C)         | Scale-Grundton            |
+| Scale                | Chromatic/Minor | Chromatic     | Snap für f0/Step-Pitch    |
+| Glide                | 0–200 ms        | 0             | Portamento Step-Pitch     |
+| Velocity to Pitch    | 0–1             | 0             | zusätzlicher Pitch-Anteil |
+| Tube Track           | an/aus          | an            | Tube-Resonanz folgt f0    |
+
+## GUI-Features
+
+- **18 Sektionen**: Membrane, Tube, Pitch Envelope, Click, Body, Sub, Drive, EQ, Comp, Output, Room, Reverb, Material Room, Higgs Field, FEATURES, SIDECHAIN, Sequencer, Global
+- **Higgs-3D-Fläche**: Mexican-Hat-Potential, Cursor per Maus an beliebige Positionen ziehbar; beim Ziehen ändern sich **alle 13 Parameter live**; alle Parameter im Display sichtbar
+- **Waveform-Display**: letzte Attack-Wellenform (Echtzeit, 30 Hz Refresh)
+- **Spectrum-Analyzer**: log-spaced Balken 20 Hz–18 kHz, farbig nach Band
+- **Envelope-Editor**: Pitch-Envelope Kurve visualisiert
+- **Preset-Auswahl**: Factory-Presets als Dropdown, `SAVE` oeffnet einen Save-As-Dialog (Name + Zielordner unter `~/.config/C.E.R.N/Presets`), `LOAD` laedt eine User-XML von dort (SND-164). Der Preset-Browser listet Init, Factory- und User-Presets (inkl. Unterordner/Kategorien); eine Thumbnail-Waveform ist **geplant** (siehe Roadmap).
+- **Step-Sequencer**: 16 sichtbare Schritte mit Velocity/Gate/Pitch, BPM, Swing, Lauflicht, manueller Schritt-Trigger; Ratchet/Flam/Probability/Length, Grid, Pattern-Kette und MIDI-Clock-Out sind als Parameter/Engine-Feature vorhanden (Step-Editor-UI für Ratchet & Co. noch nicht).
+- **3D-Interface Schwarz-Weiss-Rot** (Details unten), Doppelklick = Reset auf Default
+- **Resizable Fenster** (min. 700x500, Standard 1100x750), mono-kompatibler Low-End
+
+### 3D-Interface & Assets (2026-11-12)
+
+- **Farbpalette:** Background `#08080a`, Panel `#111216`, erhaben `#1b1d22`,
+  Text `#f4f4f6`, Akzent `#e10600` / Highlight `#ff3b3b`, Metallkante `#3a3d45`.
+  Rot ausschliesslich als Akzent (Bögen, LEDs, Zeiger, Glow) – keine roten Flaechen.
+- **Panels/Displays:** `drawBevel`/`drawWell` erzeugen Verlauf, Metall-Textur,
+  Licht-/Schattenkanten, Schrauben; Sektionen mit Titelband + roter LED.
+- **Knobs:** Metallkappe aus `Assets/knob-cap.png`, prozeduraler Kranz, Track,
+  roter Wert-Bogen mit Glow, Zeiger, Hover-Ring; Rotation/Kanten vektoriell.
+- **Fader:** `CERNFader` (APVTS-gebunden) + `drawLinearSlider` mit versenktem
+  Schacht (`Assets/fader-track.png`), Metallgriff, roter Rille und Fuellung.
+  Verwendet fuer `driveMix`, `compMix`, `reverbMix`, `materialRoomMix`,
+  `higgsMix`, `outputWidth`.
+- **Header:** grafisches Logo statt Text – Emblem-Asset
+  (`Assets/logo-emblem.png`, freigestellt) + Vektor-Wortmarke „C.E.R.N“ mit roten
+  Punkten; Accessibility-Name `C.E.R.N`. Bei < 980 px zweizeilig, damit nichts
+  abgeschnitten wird.
+- **Assets:** `Assets/logo-emblem.png`, `knob-cap.png`, `metal-brushed.png`,
+  `fader-track.png`, `grain.png` (erzeugt mit dem `generate-image` MCP,
+  Nachbearbeitung/Freistellen via `Assets/build_assets.py`); eingebunden ueber
+  `juce_add_binary_data(CERNAssets …)`.
+- **Visuelle Pruefung:** `CERNPreview <out.png> <w> <h> [patch|patchcv|morph|material|scrollbottom]`
+  rendert die echte `MainComponent` headless. Design-Review (2026-11-12): Screenshots
+  1400×900, 1100×750, 900×650, 700×500 sowie Patchbay, Parameter-CV, Material-Room,
+  Footer/Scrollbottom und MORPH (<980 px Header) geprüft; Vision-Gegencheck via
+  `nim-nemotron-vision` (`local-vision`/llama-swap nicht erreichbar). Standalone unter
+  Xvfb weiterhin nicht startbar (SIGSEGV, Exit 139): Backtrace `#0 KickSynthesisEngine::reset()`
+  ← `CERNAudioProcessor::releaseResources()` ← `juce::AudioProcessorPlayer::audioDeviceAboutToStart`
+  ← `juce::AudioDeviceManager::addAudioCallback` ← `CERNStandaloneApp::initialise` (Fix außerhalb GUI-Scope).
+
+## Factory Presets (7)
+
+| Preset               | Kategorie       | Charakter                                                                                 |
+| -------------------- | --------------- | ----------------------------------------------------------------------------------------- |
+| Deep Techno Kick     | Factory (Basis) | Trockener Deep-Techno-Kick (~46 Hz): kurzer Pitch-Snap, Concrete-Raum, moderate Sättigung |
+| Hard Acid Kick       | Factory (Basis) | Harter Acid-Kick (55 Hz): harter Beater, Diode-Drive mit Pre-HP, Punch bei 3 kHz          |
+| 808 Boomy            | Factory (Basis) | Boomy 808 (~41 Hz): langer Body, Wood-Reverb, viel Room-Rumble                            |
+| Tight Techno         | Factory (Basis) | Kurz und trocken (49 Hz): schneller Pitch-Decay, kein Reverb, straffe Kompression         |
+| CV Pulse Kick        | Factory (CV)    | Modulierter Kick (~52 Hz): Body-Level → Drive-Mix, Higgs-Setup                            |
+| Higgs Mod Kick       | Factory (Higgs) | Massiver Higgs-Kick (~46 Hz): langer Pitch-Glide, großes Body-/Sub-Fundament, 4 CV-Kabel  |
+| Parameter Patch Kick | Factory (Patch) | Diode-Kick (~58 Hz): Pre-HP-Drive, Punch bei 3 kHz, Higgs-Stärke → Boson-Q                |
+
+Alle sieben Factory-Presets sind Code-Snapshots in `Source/Presets/PresetManager.cpp`;
+es gibt keine separate `factory_presets.json`. Die drei CV-Presets enthalten
+Higgs-Settings und Parameter-CV-Kabel. Preset-Slot 0 im Browser ist `Init`
+(SND-166); es zaehlt nicht zu den sieben Factory-Presets.
+
+## Build Targets
+
+| Target           | Beschreibung                      | Artefakt                                                                              |
+| ---------------- | --------------------------------- | ------------------------------------------------------------------------------------- |
+| `CERN_VST3`      | VST3-Plugin                       | `build/.../VST3/CERN.vst3/...`                                                        |
+| `CERNStandalone` | Standalone-App                    | `build/Source/CERNStandalone_artefacts/Release/C.E.R.N Standalone` (benötigt GTK/X11) |
+| `CERNTests`      | Unit-Tests (eigene Harness)       | `build/Source/CERNTests`                                                              |
+| `CERNAssets`     | BinaryData-Target (Logo/Texturen) | statische Lib, von CERN/CERNStandalone/CERNTests/CERNPreview gelinkt                  |
+| `CERNPreview`    | Headless-GUI-Render (PNG)         | `build/Source/CERNPreview_artefacts/Release/CERNPreview`                              |
+
+### Standalone-Bauen (benötigt System-GUI-Libs)
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc) --target CERNStandalone
+```
+
+Hinweis: Unter Linux benötigt das Standalone-Target GTK und X11-Entwicklungsbibliotheken (`libgtk-3-dev`, `libx11-dev` etc.). Das VST3-Target baut ohne diese Abhängigkeiten.
+
+## Audio Setup (Standalone)
+
+Die Standalone-App speichert ihre Audio-Einstellungen unter
+`~/.config/C.E.R.N/audio_settings.xml` und lädt sie beim nächsten Start
+wieder. Wird das gespeicherte Gerät nicht gefunden, fällt die App automatisch
+auf das Default-Gerät zurück.
+
+Im Header (neben **TRIGGER**) sitzt der **AUDIO**-Button. Er öffnet den
+Audio-Setup-Dialog (JUCE `AudioDeviceSelectorComponent`):
+
+- **Output**: Soundkarte / Ausgabegerät manuell auswählen
+- **Active output channels**: Stereo-Paare aktivieren/deaktivieren
+- **Sample rate** und **Audio buffer size**: immer sichtbar
+
+Gespeichert wird beim Schliessen des Dialogs und beim Beenden der App.
+Der Button ist im VST3-Plugin nicht vorhanden (der Host stellt das Gerät).
+
+### ASIO (Windows)
+
+JUCE bringt die Steinberg-ASIO-Header bereits mit, ein externer SDK ist nicht
+nötig. Aktivieren mit:
+
+```bash
+cmake -B build -DCERN_WITH_ASIO=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc) --target CERNStandalone
+```
+
+Danach erscheint im Dialog **Audio device type: ASIO**. Es gelten die
+Lizenzbedingungen von Steinberg. Standard ist `OFF`.
+
+### JACK (Linux)
+
+Optional (weak-linked, keine JACK-dev-Libraries nötig):
+
+```bash
+cmake -B build -DCERN_WITH_JACK=ON -DCMAKE_BUILD_TYPE=Release
+```
+
+Dann steht **Audio device type: ALSA** und **JACK** zur Auswahl.
+
+## DSP-Signalfluss
+
+```
+Trigger
+  → [Pitch-Envelope: hoch→tief Glissando]
+  → [Membrane-Modalbank (Bessel, f1≈0.766·T/(σ·D))]
+        → Nonlinear Tension Modulation (Pitch-Glide)
+        → [Tube/Hollow-Resonator (f ~ 1/D, Hohlkörper-Kopplung)]
+  → [Sub-Oszillator (Sine/Triangle/Square, 40–60 Hz)]
+  → [Click/Beater-Transient (Noise+Sine, Beater-Material)]
+  → [Drive: Tube/Diode/Fuzz/WaveFold/Alias]
+  → [3-Band EQ: Sub / Punch / Air]
+  → [Rumble High-Pass (20–40 Hz Cut)]
+  → [Compressor + Makeup]
+  → [Room / Late Rumble (Hollow Industrial)]
+  → [HIGGS FIELD: 5-Band Yukawa-Kopplung + Boson-Peak 125.35 Hz + λ-Sättigung]
+  → [Reverb / Material (FDN, Material-EQ, Pre-Delay, RT60)]
+  → [Output: Gain/Pan/Width/Mono-Below/Clip/Limiter] → Stereo Out
+```
+
+## Bekannte Design-Entscheidungen / Grenzen
+
+Diese Punkte sind **bewusst so gebaut** (oder bewusst noch offen) und keine Bugs.
+Sie stehen hier, damit sie bei Audits nicht erneut als Fehler gemeldet werden.
+Der Bearbeitungsstand der offenen Punkte steht in `TODO.md` (Abschnitt
+„Bugfix-Backlog“).
+
+- **Fan-in ist gepuffert, nicht ladend.** Jeder Eingang summiert alle
+  verbundenen Quellen (`sumTo` in `KickSynthesisEngine`) mit reiner Addition,
+  ohne Pegelkompensation. Es gibt **kein Summing-Headroom** und keine
+  Normierung: Mehr Kabel an einem Eingang erhöhen den Pegel (Eurorack-Prinzip,
+  Clipping erst in Clip/Limiter der Output-Stufe). Zwei Kabel an `OutputIn`
+  ergeben also nicht den halben, sondern den doppelten Pegel.
+- **Drive ist der Pflicht-Summing-Knoten für Membrane/Sub/Click.** Der
+  Default-Patch führt Membrane, Tube, Sub und Click in `DriveIn` zusammen;
+  ohne Drive-Kabel kommt am Rest der Kette nichts an. Das ist die
+  Werksverschaltung, kein Zwang: Der Graph erlaubt jedes andere Routing.
+- **Tube ist ein Parallelzweig.** Der Default-Patch verbindet
+  `MembraneOut → TubeIn` **und** `MembraneOut → DriveIn`; Tube wird auf Drive
+  summiert, nicht in Serie dahinter gehängt. Tube kann daher nur additiv
+  färben, nicht das trockene Membransignal ersetzen.
+- **Room- und Reverb-Returns sind wet-only.** Beide Module geben ausschließlich
+  ihr Nasssignal aus (`RoomOut = delayed * level`, `ReverbOut = Wet`). Das
+  Trockensignal muss im Patch separat geführt werden; klassische
+  Insert-Verschaltung (Dry+Wet im Modul) gibt es nicht. Higgs gibt nach dem Fix
+  ebenfalls nur den Wet-Anteil aus (Dry läuft am Higgs vorbei).
+- **Room: 4 Taps statt einer festen 80-ms-Verzögerung.** Die Stufe nutzt vier
+  Taps (61/79/97/113 ms) mit R-Taps +8,3 % für ein dekorelliertes Stereobild und
+  einen DC-Blocker (~2 Hz) im Feedback. `Room Decay` skaliert das Feedback
+  (RT60-korrekt). `roomSync` ist als Engine-Enum vorhanden, aber noch nicht als
+  APVTS-Parameter/UI freigeschaltet (SND-093, siehe TODO.md).
+- **Kein DSP-Reset beim Preset-/State-Laden.** `setStateInformation` und der
+  Preset-Manager schreiben nur Parameter und Patches; `engine.reset()` läuft
+  ausschließlich in `prepareToPlay`. Laufende Tails (Room/Reverb/Higgs) klingen
+  beim Preset-Wechsel also weiter. Das ist bewusst so: ein Reset mitten im
+  Betrieb würde Tails abschneiden und Klicks erzeugen. Wer einen harten
+  Preset-Wechsel braucht, muss vorher stoppen/neu triggern.
+- **CompOut ist konstruktionsbedingt mono.** Der Compressor summiert L/R zu
+  einem Mono-Signal und legt dieses auf beide Kanäle von `CompOut`. Nach dem
+  Compressor ist die Stereobreite weg; Breite entsteht erst wieder in der
+  Output-Stufe (`Output Width`, `Mono Below`). Das ist für einen Kick gewollt,
+  macht den Compressor aber als Stereo-Insert unbrauchbar.
+- **`reverbMaterial` ist klanglich differenziert.** Material 0 („None“) umgeht
+  den Reverb; Wood/Metal/Plastic/Concrete/Glass/Stone haben eigene
+  RT60-Multiplikatoren, Dämpfungs-/LowCut-/HighCut-Kurven und einen
+  materialabhängigen Pre-FDN-Tonfilter. Die Unterschiede sind durch
+  `reverb_material_distinctness_tail_rt60_filter` und
+  `material_reverb_materials_differ_rt60_and_tone` abgesichert.
+- **Sequencer-Patterns B–D und Steps 17–64 sind derzeit nicht spielbar.**
+  `stepVel`, `stepGate` und `stepPitch` existieren nur für die 16 sichtbaren
+  Steps (Pattern A). Ratchet/Flam/Probability/Length sind dagegen für
+  4×64 Slots vorhanden. `sequencerSteps` erlaubt 1–64, aber Steps 17–64 haben
+  kein Gate und bleiben stumm; Pattern B–D ebenfalls. Das ist eine bekannte
+  Grenze (SND-145/146), kein stiller Fehler — siehe `TODO.md`.
+- **Parameter-CV-Persistenz ist index- und ID-basiert.** `<ParameterPatch>`
+  speichert Verbindungen als `source`/`target`-Indizes plus die Parameter-IDs;
+  beim Laden wird über die ID auf den aktuellen Index aufgelöst. Das erlaubt
+  Migration, wenn sich die Reihenfolge in `ParameterIDs::getAllIDs()` ändert,
+  setzt aber voraus, dass IDs stabil bleiben (sie werden nie umbenannt).
+  Unbekannte IDs werden verworfen, nicht auf einen anderen Parameter gemappt.
+- **CV-Ziele sind alle 1229 APVTS-Parameter.** Die Parameter-CV-Ansicht listet
+  jede ID aus `getAllIDs()`; die 12 Modul-Ein/Aus-Bool-Parameter stehen in der
+  Gruppe `MODULE ENABLE` (plus `higgsEnabled` in `HIGGS FIELD`). Sie sind gültige
+  CV-Quellen/-Ziele, werden aber als Bool auf 0/1 geklemmt — CV auf einem
+  Enable-Parameter schaltet also hart, es gibt keine Hysterese.
+- **Werte-Anzeige in der Parameter-CV-Liste** nutzt den JUCE-Text-Formatter
+  (`getText`), also Choice-Namen („Wood“, „Metal“, …) und „On“/„Off“. Nur wenn
+  ein Parameter keinen Formatter liefert, erscheint der rohe Zahlenwert.
+- **Doppelte Kabel / Mehrfach-Verbindungen** sind pro Source→Target-Paar
+  dedupliziert; dasselbe Paar kann nicht zweimal gesteckt werden. Es gibt keine
+  Kabel-Multiplikation (kein „2× stecken = 2× Pegel“).
+
+## Roadmap (offen)
+
+- CLAP + AU (macOS) + Standalone-Export
+- Sample-basierte Click-Layer (Hybrid)
+- Thumbnail-Waveform im Preset-Browser
+- Step-Editor-UI für Ratchet/Flam/Probability/Length sowie Steps 17–64/Patterns B–D
+- ARA-Unterstützung
+- MPE / Polyphonie (aktuell monofon)
+
+## Sound-Review 2026-11-12
+
+Die vollständige, priorisierte Sound-Review (DSP, Presets, GUI, Doku) liegt in
+[`SOUND_REVIEW.md`](SOUND_REVIEW.md): **327 Findings** (SND-001…SND-327).
+Alle 327 Findings sind in `TODO.md` im Abschnitt „Sound-Review 2026-11-12“
+getrackt; die fünf Dokumentations-Findings SND-186…SND-190 sind mit diesem
+Stand erledigt.
+
+## Lizenz
+
+Interne Entwicklung, ScalyxSoft 2026.
+
+## Build & Package (macOS/Windows/Linux)
+
+Plattformübergreifende Build-/Packaging-Vorbereitung (CMake, CI, Skripte, Installer-Vorlagen) ist im Repo enthalten. **Reale macOS-/Windows-Builds, Codesignatur und Notarisierung** müssen auf den jeweiligen Zielplattformen ausgeführt werden.
+
+- Detaillierte Anleitung: [`docs/BUILD_CROSS_PLATFORM.md`](docs/BUILD_CROSS_PLATFORM.md)
+- Packaging: [`packaging/`](packaging/) (`macOS/`, `Windows/`, `Linux/`)
+- Skripte: [`scripts/package-vst3.sh`](scripts/package-vst3.sh), [`scripts/package-standalone.sh`](scripts/package-standalone.sh)
+- CI: [`.github/workflows/build-cross-platform.yml`](.github/workflows/build-cross-platform.yml)
+
+### Kurzüberblick
+
+```bash
+# Configure (Release)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+# Linux: VST3 + Standalone
+cmake --build build --target CERN_VST3 --parallel
+cmake --build build --target CERNStandalone --parallel
+
+# macOS (auf macOS): Universal-Binary + Deployment Target
+cmake -S . -B build-mac -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+
+# Windows (auf Windows, MSVC/Ninja): optional ASIO für Standalone
+cmake -S . -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Release -DCERN_WITH_ASIO=ON
+```
+
+Optionen: `CERN_WITH_JACK=ON` (Linux, Standalone), `CERN_WITH_ASIO=ON` (Windows, Standalone). Siehe `docs/BUILD_CROSS_PLATFORM.md` für Dependencies, Install-Pfade, Signierung/Notarisierung, Installer und Troubleshooting.
+
+## Rückseite / Patch-Bay (modulares Re-Patching)
+
+Über den Header-Button **RUECKSEITE** erreichst du die hardware-artige Rückwand des Synths (FRONT schaltet zurück). Die Ansicht zeigt alle Module als 3D/2.5D-Panele mit Schrauben, Parameternamen pro Modul und beschrifteten IN/OUT-Buchsen:
+
+- **MEMBRANE** (OUT), **TUBE** (IN/OUT), **SUB** (OUT), **CLICK** (OUT)
+- **DRIVE** (IN/OUT), **EQUALIZER** (IN/OUT), **COMPRESSOR** (IN/OUT)
+- **ROOM** (IN/OUT), **HIGGS FIELD** (IN/OUT, Stereo), **REVERB** (IN/OUT, Stereo),
+  **MATERIAL ROOM** (IN KICK/IN RUMBLE/OUT, Stereo), **OUTPUT** (IN/OUT, Stereo)
+
+**Bedienung:** Jack klicken oder ziehen, um eine Verbindung zu stecken (Out→In, Richtung wird automatisch erkannt). Mehrere Kabel an einem Eingang werden summiert (Eurorack-Stil). Rechtsklick auf eine Buchse oder ein Kabel entfernt Verbindungen. **STANDARD PATCH** stellt die Werks-Verschaltung wieder her, **ALLE LOESCHEN** entfernt alle Kabel.
+
+**Audio-Impact:** Das Routing läuft graph-basiert in der DSP-Engine (`PatchGraph`, topologische Reihenfolge, Zyklus-Schutz). Jedes Umstecken verändert den Signalfluss sofort hörbar (z. B. keine Verbindung zum OUTPUT → Stille, Quellen direkt in den Ausgang, FX parallel/seriell neu verdrahtet).
+
+**Parameter-Patch (CV):** Die Tabs oben (AUDIO ROUTING / PARAMETER CV) schalten zwischen Audio-Routing und parameterbezogener CV-Verkabelung. Die Parameter-Ansicht listet alle 1229 APVTS-Parameter als scrollbare Zeilen mit `OUT` und `IN` (inkl. der 12 Modul-Ein/Aus-Schalter in `MODULE ENABLE`; `higgsEnabled` steht in `HIGGS FIELD`). Choice-/Bool-Parameter zeigen Text („Wood“, „On“/„Off“), keine rohen Indizes. Ein Kabel von einem `OUT` zu einem `IN` summiert bipolar auf den Basis-Parameter. Daraus resultierende effektive Parameterwerte werden pro Block in der Engine ausgewertet.
+
+**Presets:** Es gibt 7 Factory-Presets. Die drei Presets `CV Pulse Kick`, `Higgs Mod Kick` und `Parameter Patch Kick` enthalten vollständige Higgs-Feld-Einstellungen und fertige Parameter-CV-Verbindungen (z. B. Body-Level → Drive-Mix, Sub-Level → Room-Rumble, Higgs-Stärke → Boson-Q).
+
+Zusätzlich kann für jeden Parameter separat `SRC` und `DST` ein- oder ausgeschaltet werden: `SRC` steuert, ob ein Parameter als CV-Quelle arbeitet, `DST`, ob eingehende CV auf den Parameter wirkt. Schalter und Kabel sind persistent im State/Preset.
+
+**Persistenz:** Audio-Patch und Parameter-Patch werden automatisch zusammen mit Parametern und Host-State gespeichert und geladen: als `<Patch>`- bzw. `<ParameterPatch>`-Knoten im VST3/Standalone-State sowie in User-Preset-XML. Im Standalone liegt der Gesamt-State zusätzlich unter `~/.config/C.E.R.N/standalone_state.xml` und wird beim Start geladen bzw. beim sauberen Beenden geschrieben. Factory-Presets stellen den Werks-Patch wieder her; User-Presets und Host-Projekte behalten den benutzerdefinierten Patch. Alte/korrupte States mit mehreren Patch-Knoten werden tolerant migriert (der letzte/aktuelle Patch zählt).
+
+**Modul-Ein/Aus:** Jedes Modul hat auf Front- und Rückseite einen `ON`-Schalter (AudioParameterBool, default on). Ist ein Modul aus, steuert es kein Signal mehr bei: Quellen liefern 0, serielle Stufen werden bypassed, Room/Reverb liefern 0, Higgs/Reverb bypassen, Output muted. Der Schalter ist automatisierbar und wird mit Preset/State persistiert.
+
+**Kabelfarben:** Audio-Kabel sind nach Quellmodul farbkodiert (Membrane rot, Tube orange, Sub gelb, Click magenta, Drive dunkelrot, EQ amber, Compressor dunkelrot, Room teal, Higgs violett, Reverb blau, Output weiß); deaktivierte Module/Kabel werden grau. Parameter-CV-Kabel erhalten Farben nach Quellparameter-Gruppe (z. B. Membrane rot, Tube orange, Sub gelb, Drive orange, EQ amber, Compressor dunkelrot, Room teal, Reverb blau, Higgs violett, Sequencer grün/cyan, Modul-Ein/Aus neutral amber-grau). Selektierte Kabel werden weiß hervorgehoben, deaktivierte Quellen/Ziele grau.
