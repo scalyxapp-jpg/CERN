@@ -17,6 +17,7 @@
 #include "MaterialReverb.h"
 #include "MaterialRoom.h"
 #include "MixerStage.h"
+#include "LayeringStage.h"
 #include "HiggsFieldEngine.h"
 #include "PatchGraph.h"
 #include "ParameterPatchGraph.h"
@@ -131,6 +132,16 @@ public:
     MixerStage& getMixer() noexcept { return mixer; }
     const MixerStage& getMixer() const noexcept { return mixer; }
 
+    /** Automatisches 2-Layer-Layering (abgeleitete Werte fuer die GUI). */
+    LayeringStage& getLayering() noexcept { return layering; }
+    const LayeringStage& getLayering() const noexcept { return layering; }
+
+    /** Layer-Taps des letzten Blocks (nur fuer die Waveform-Anzeige).
+        Zeiger gilt bis zum naechsten render()-Aufruf, Laenge = numSamples. */
+    const float* getLayerTapLow() const noexcept { return layerTapLow.data(); }
+    const float* getLayerTapHigh() const noexcept { return layerTapHigh.data(); }
+    int getLayerTapSize() const noexcept { return (int) layerTapLow.size(); }
+
     PatchGraph& getPatchGraph() noexcept { return patchGraph; }
     const PatchGraph& getPatchGraph() const noexcept { return patchGraph; }
 
@@ -177,6 +188,15 @@ private:
     /** Mehrkanal-Mixer (letzte Stufe vor dem Output): pro Klang-Modul ein
         Kanal mit Lautstaerke, 4-Band-EQ, Mute und automatischer Sidechain. */
     MixerStage mixer;
+
+    /** Automatisches Layering: zwei aus den Modul-Parametern abgeleitete
+        Zusatz-Layer (Depth + Presence). Wird am Membrane-Bus eingespeist,
+        damit alle Module/Modulationen fuer alle Layer identisch wirken. */
+    LayeringStage layering;
+
+    /** Tap-Puffer der beiden Layer (Audio -> GUI-Waveform, kein Lock). */
+    std::vector<float> layerTapLow;
+    std::vector<float> layerTapHigh;
 
     // ---- Modulare Verkabelung (Eurorack-artig) ----
     PatchGraph patchGraph;

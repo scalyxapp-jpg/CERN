@@ -348,7 +348,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     layout.add (addFloat (ParameterIDs::duckRelease, "Duck Release", { 20.0f, 500.0f, 1.0f }, DefaultValues::duckRelease));
 
     // ------------------------------------------------------------------
-    // 2.23 Mixer (12 Kanäle × 5 Parameter = 60)
+    // 2.23 Mixer (13 Kanäle × 6 Parameter = 78 + 1 Sidechain-Tiefe)
     // Reihenfolge identisch zu ParameterIDs::getAllIDs() (dort am Ende).
     // Gain: 0–2 (1 = neutral). Bänder: -24…+24 dB.
     // ------------------------------------------------------------------
@@ -366,8 +366,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     layout.add (addFloat (ParameterIDs::mixerSidechainDepth, "Mixer Sidechain Depth",
                           { 0.0f, 1.0f, 0.01f }, 1.0f));
 
+    // ------------------------------------------------------------------
+    // 2.24 Automatisches Layering (1 Bool)
+    // Reihenfolge identisch zu ParameterIDs::getAllIDs() (dort am Ende).
+    // ------------------------------------------------------------------
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        ParameterIDs::layeringEnabled, "Layering Enabled", false,
+        "Adds two automatically derived layers (depth + presence)"));
+
     // 1199 Basis-Parameter + 12 Module-Enables + 15 Material Room + 3 Feature
-    // + 78 Mixer + 1 Sidechain = 1308 (siehe numLayoutParameters).
+    // + 78 Mixer + 1 Sidechain + 1 Layering = 1309 (siehe numLayoutParameters).
     jassert (getLayoutParameterCount() == numLayoutParameters);
 
     return layout;

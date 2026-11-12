@@ -278,12 +278,25 @@ void CERNAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
 
         int writePos = displayBuffers.waveformWritePos.load (std::memory_order_relaxed);
 
+        const float* layerLowTap  = engine.getLayerTapLow();
+        const float* layerHighTap = engine.getLayerTapHigh();
+        const bool hasLayerTaps = engine.getLayerTapSize() >= numSamples;
+
         for (int i = 0; i < numSamples; i += DisplayBuffers::waveformDecimation)
         {
             // Mid-Signal: repraesentativ fuer beide Kanaele (kein Kanal-0-Metering).
             const float sample = 0.5f * (leftData[i] + rightData[i]);
             displayBuffers.waveform[(size_t) (writePos & mask)]
                 .store (sample, std::memory_order_relaxed);
+
+            if (hasLayerTaps)
+            {
+                displayBuffers.layerLow[(size_t) (writePos & mask)]
+                    .store (layerLowTap[i], std::memory_order_relaxed);
+                displayBuffers.layerHigh[(size_t) (writePos & mask)]
+                    .store (layerHighTap[i], std::memory_order_relaxed);
+            }
+
             ++writePos;
         }
 

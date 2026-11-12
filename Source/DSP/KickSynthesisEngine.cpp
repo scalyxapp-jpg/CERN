@@ -107,6 +107,10 @@ void KickSynthesisEngine::prepare (double sampleRate, int samplesPerBlock)
     materialRoom.prepare (sampleRate, samplesPerBlock);
     higgs.prepare (sampleRate);
     mixer.prepare (sampleRate);
+    layering.prepare (sampleRate);
+
+    layerTapLow.assign ((size_t) juce::jmax (1, samplesPerBlock), 0.0f);
+    layerTapHigh.assign ((size_t) juce::jmax (1, samplesPerBlock), 0.0f);
 
     // Room: 4-Tap-Netzwerk, max. 600 ms Tap-Abstand (SND-091..100).
     roomBufferSize = juce::jmax (8, (int) std::ceil (sampleRate * 0.65) + 4);
@@ -145,6 +149,7 @@ void KickSynthesisEngine::reset()
     materialRoom.reset();
     higgs.reset();
     mixer.reset();
+    layering.reset();
 
     // Sub
     subPhase = 0.0f;
@@ -348,6 +353,7 @@ void KickSynthesisEngine::trigger (float velocity, float pitchSemitones)
     membrane.trigger (velocity);
     pitchEnv.trigger();
     click.trigger (velocity, velocityToClick);
+    layering.trigger (velocity);
 
     // Sub-Phase: 0 bei Ratio 1.0, pi/2 bei 0.5 (SND-051).
     subPhase = (subRatio < 0.75f) ? juce::MathConstants<float>::halfPi : 0.0f;
@@ -1489,6 +1495,28 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
     baseFundamentalHz = snapFundamentalToScale (fundamentalHz, blockKeyRoot, blockScale);
     baseNoteNumber = (int) std::lround (69.0f + 12.0f * std::log2 (baseFundamentalHz / 440.0f));
 
+    // ---- Automatisches Layering ----
+    // Kein eigener Regler ausser dem Ein/Aus: alle Layer-Werte werden aus den
+    // bestehenden Modul-Parametern abgeleitet (Laenge/Attack/Decay/Pegel/
+    // Dichte/Bandlage). Bool ungesmoothed, damit der Schalter nicht nachzieht.
+    {
+        const bool layeringOn = smoothing.getUnsmoothedById (ParameterIDs::layeringEnabled) > 0.5f;
+
+        LayeringStage::Params lp;
+        lp.enabled         = layeringOn;
+        lp.fundamentalHz   = baseFundamentalHz;
+        lp.subLevel        = subLevel;
+        lp.subDecayMs      = subDecay;
+        lp.bodyAttackMs    = bodyAttack;
+        lp.bodyDecayMs     = bodyDecay;
+        lp.clickLevel      = clickLevel;
+        lp.clickDecayMs    = clickDecay;
+        lp.clickTone       = clickTone;
+        lp.clickDistortion = clickDistortion;
+        lp.driveAmount     = driveAmount;
+        layering.setParams (lp);
+    }
+
     // ---- Modul-Ein/Aus ----
     // Semantik (konsistent): Quellen/Sends (Membrane, Body, Tube, Sub, Click,
     // Room, Reverb, Higgs) werden stummgeschaltet; Serie-Prozessoren (Drive, EQ,
@@ -1810,7 +1838,30 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                     membraneSample = mixer.processMono ((int) MixerStage::Channel::Membrane, membraneSample);
                     bodySample = mixer.processMono ((int) MixerStage::Channel::Body, bodySample);
 
-                    float membraneBus = membraneSample + bodySample;
+                    // ---- Automatisches 2-Layer-Layering ----
+                    // Die Layer sitzen am Membrane-Bus: damit laufen sie durch
+                    // exakt dieselben Module (Tube/Drive/EQ/Comp) und dieselben
+                    // Modulationen wie die Basis. Equal-Power-Trim auf
+                    // Membrane+Body haelt die Energie konstant (kein Overgain).
+                    float layerLow = 0.0f;
+                    float layerHigh = 0.0f;
+
+                    if (layering.isEnabled())
+                    {
+                        layering.process (tunedFundamental * pitchRatio, layerLow, layerHigh);
+
+                        const float trim = layering.getBaseTrim();
+                        membraneSample *= trim;
+                        bodySample *= trim;
+                    }
+
+                    if (i < (int) layerTapLow.size())
+                    {
+                        layerTapLow[(size_t) i] = layerLow;
+                        layerTapHigh[(size_t) i] = layerHigh;
+                    }
+
+                    float membraneBus = membraneSample + bodySample + layerLow + layerHigh;
 
                     if (! std::isfinite (membraneBus))
                         membraneBus = 0.0f;

@@ -1,3 +1,17 @@
+## Automatisches Layering (2026-11-12)
+
+- [x] `LayeringStage` (DSP): zwei vollstaendig aus den Modul-Parametern abgeleitete Layer
+      (L1 DEPTH: Grundton-Stuetzung mit langem Decay; L2 PRESENCE: kurzer bandbegrenzter Textur-Layer)
+- [x] Alle Layer-Werte automatisch: Frequenz, Laenge, Attack, Decay, Pegel, Dichte, Bandlage, Delay
+- [x] Beide Layer folgen derselben Modulation wie die Basis (Pitch-Env, Glide, Velocity->Pitch, Velocity)
+- [x] Einspeisung am Membrane-Bus -> Tube/Drive/EQ/Comp, Mixer-Kanaele und Patchbay unveraendert
+- [x] Pegelneutral: teil-kohaerenter Basis-Trim; Messung ueber alle 11 Factory-Presets max. +0,79 dB
+- [x] Checkbox "LAYERING ENABLED" in der Waveform-Kopfzeile (+ Eintrag in FEATURES)
+- [x] Waveform-Anzeige ueberlagert beide Layer farbig mit Legende (Hz / ms / dB / Dichte)
+- [x] Parameter `layeringEnabled` am Ende von getAllIDs() (1309 gesamt, Indizes stabil)
+- [x] Tests: off-by-default, beide Layer tragen, kein Overgain/Lautheitssprung,
+      Depth-Layer bis in den Tail, Presence kurz, Pitch-/Velocity-Modulation, 11 Presets
+
 ## Mixer-Tab (2026-11-12)
 
 - [x] MixerStage (DSP): 13 Kanäle, Gain + 4-Band-EQ (RBJ-Shelf/Peak, 0 dB = transparent), Mute

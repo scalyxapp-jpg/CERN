@@ -186,7 +186,7 @@ struct DefaultValues
 //==============================================================================
 /** Anzahl der Parameter im Layout: 1199 Basis-Parameter + 12 Module-Enables
     + 15 Material Room / Sub Grumble + 3 Feature-Findings = 1229. */
-inline constexpr int numLayoutParameters = 1308; // 1229 + 78 Mixer + 1 Sidechain
+inline constexpr int numLayoutParameters = 1309; // 1229 + 78 Mixer + 1 Sidechain + 1 Layering
 
 /** Erstellt das APVTS-Parameter-Layout mit allen 1229 Parametern. */
 juce::AudioProcessorValueTreeState::ParameterLayout createLayout();

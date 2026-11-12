@@ -16,6 +16,7 @@
 #include "DSP/MaterialReverb.h"
 #include "DSP/HiggsFieldEngine.h"
 #include "DSP/Metering.h"
+#include "DSP/MixerStage.h"
 #include "DSP/LoudnessMeter.h"
 #include "DSP/MidiFilter.h"
 #include "DSP/TransientShaper.h"
@@ -2470,7 +2471,109 @@ TEST (parameter_layout_ids_are_complete_unique)
 }
 
 //==============================================================================
-// SND-174: Ducking wirkt auf den Ausgang; duckDepth = 0 ist neutral.
+// Mixer: 0-dB-EQ muss bit-transparent sein (Bypass-Pfad, keine Float-Filter).
+TEST (mixer_eq_zero_db_is_bit_transparent)
+{
+    CernTestProcessor dummy;
+    juce::AudioProcessorValueTreeState apvts (dummy, nullptr, "Params", createLayout());
+    ParameterSmoothing smoothing (apvts);
+    MixerStage mixer;
+
+    smoothing.prepare (48000.0);
+    smoothing.setBlockSize (512);
+    mixer.prepare (48000.0);
+
+    for (int i = 0; i < 20; ++i)
+        smoothing.update();
+
+    mixer.updateParameters (smoothing);
+
+    const float input = 0.123456789f;
+    CHECK (mixer.processMono ((int) MixerStage::Channel::Membrane, input) == input);
+
+    float l = input, r = -input;
+    mixer.processStereo ((int) MixerStage::Channel::Room, l, r);
+    CHECK (l == input);
+    CHECK (r == -input);
+}
+
+//==============================================================================
+// Mixer-Sidechain: proportional (lauter duckt tiefer), ohne Click->Sub.
+TEST (mixer_sidechain_is_proportional_and_click_free)
+{
+    auto duckForAmplitude = [] (float amplitude)
+    {
+        CernTestProcessor dummy;
+        juce::AudioProcessorValueTreeState apvts (dummy, nullptr, "Params", createLayout());
+        ParameterSmoothing smoothing (apvts);
+        MixerStage mixer;
+
+        smoothing.prepare (48000.0);
+        smoothing.setBlockSize (512);
+        mixer.prepare (48000.0);
+
+        for (int i = 0; i < 20; ++i)
+            smoothing.update();
+
+        mixer.updateParameters (smoothing);
+
+        for (int i = 0; i < 24000; ++i)
+            mixer.processMono ((int) MixerStage::Channel::Compressor, amplitude);
+
+        // Ducking wird beim Verarbeiten des Zielkanals angewandt; ein
+        // Einheitssample liefert damit den aktuellen Sidechain-Gain.
+        const float roomGain = mixer.processMono ((int) MixerStage::Channel::Room, 1.0f);
+        return juce::Decibels::gainToDecibels (roomGain, -120.0f);
+    };
+
+    const float quiet  = duckForAmplitude (0.02f);
+    const float medium = duckForAmplitude (0.10f);
+    const float loud   = duckForAmplitude (0.60f);
+
+    CHECK (quiet < 0.0f);
+    CHECK (medium < quiet);
+    CHECK (loud < medium);
+    CHECK (loud > -5.5f);
+
+    // Click darf den Sub nicht mehr ducken (Grundton-Wobbel).
+    CernTestProcessor dummy;
+    juce::AudioProcessorValueTreeState apvts (dummy, nullptr, "Params", createLayout());
+    ParameterSmoothing smoothing (apvts);
+    MixerStage mixer;
+
+    smoothing.prepare (48000.0);
+    smoothing.setBlockSize (512);
+    mixer.prepare (48000.0);
+
+    for (int i = 0; i < 20; ++i)
+        smoothing.update();
+
+    mixer.updateParameters (smoothing);
+
+    for (int i = 0; i < 4800; ++i)
+        mixer.processMono ((int) MixerStage::Channel::Click, 0.9f);
+
+    CHECK (mixer.processMono ((int) MixerStage::Channel::Sub, 1.0f) == 1.0f);
+
+    // Ein gemuteter Quellkanal duckt nicht mehr.
+    mixer.updateParameters (smoothing);
+    if (auto* mute = apvts.getParameter (ParameterIDs::mixerId (7, "Mute")))
+        mute->setValueNotifyingHost (1.0f);
+
+    for (int i = 0; i < 20; ++i)
+        smoothing.update();
+
+    mixer.updateParameters (smoothing);
+
+    for (int i = 0; i < 24000; ++i)
+        mixer.processMono ((int) MixerStage::Channel::Compressor, 0.9f);
+
+    const float roomGain = mixer.processMono ((int) MixerStage::Channel::Room, 1.0f);
+    CHECK (juce::Decibels::gainToDecibels (roomGain, -120.0f) > -0.2f);
+}
+
+//==============================================================================
+
 TEST (ducking_depth_reduces_output)
 {
     auto energyAtDepth = [] (float depthDb)
@@ -3200,6 +3303,245 @@ TEST (material_room_wet_lowcut_attenuates_sub_band)
         CHECK (low > 1.0e-7);   // Wet traegt im Sub-Band bei
         CHECK (mid > 1.0e-7);   // Wet traegt im Nutzband bei
         CHECK (low < mid * 0.6); // Low-Cut wirkt (>= ~4.4 dB Absenkung)
+    }
+}
+
+//==============================================================================
+// Automatisches Layering: zwei aus den Modul-Parametern abgeleitete Layer.
+//==============================================================================
+namespace
+{
+struct LayeredCapture
+{
+    std::vector<float> out;
+    std::vector<float> low;
+    std::vector<float> high;
+    float peak { 0.0f };
+};
+
+LayeredCapture renderLayeredKick (bool layering,
+                                  float velocity = 1.0f,
+                                  float pitchEnvDepth = 0.3f,
+                                  int blocks = 140)
+{
+    EngineHarness harness;
+    harness.setBool (ParameterIDs::layeringEnabled, layering);
+    harness.set (ParameterIDs::pitchEnvDepth, pitchEnvDepth);
+    harness.settle();
+    harness.engine.trigger (velocity, 0.0f);
+
+    LayeredCapture capture;
+    juce::AudioBuffer<float> buffer (2, 512);
+    const int tapSize = harness.engine.getLayerTapSize();
+
+    for (int block = 0; block < blocks; ++block)
+    {
+        buffer.clear();
+        harness.render (buffer);
+
+        for (int i = 0; i < buffer.getNumSamples(); ++i)
+        {
+            capture.out.push_back (buffer.getSample (0, i));
+
+            if (i < tapSize)
+            {
+                capture.low.push_back (harness.engine.getLayerTapLow()[i]);
+                capture.high.push_back (harness.engine.getLayerTapHigh()[i]);
+            }
+        }
+
+        capture.peak = juce::jmax (capture.peak,
+                                   buffer.getMagnitude (0, buffer.getNumSamples()));
+    }
+
+
+    return capture;
+}
+
+double vectorEnergy (const std::vector<float>& v, size_t begin, size_t end)
+{
+    double sum = 0.0;
+
+    for (size_t i = begin; i < juce::jmin (end, v.size()); ++i)
+        sum += (double) v[i] * (double) v[i];
+
+    return sum;
+}
+
+double vectorRmsDb (const std::vector<float>& v)
+{
+    if (v.empty())
+        return -120.0;
+
+    return 10.0 * std::log10 (std::max (1.0e-12, vectorEnergy (v, 0, v.size()) / (double) v.size()));
+}
+
+float vectorPeak (const std::vector<float>& v)
+{
+    float peak = 0.0f;
+
+    for (const auto sample : v)
+        peak = juce::jmax (peak, std::abs (sample));
+
+    return peak;
+}
+} // namespace
+
+TEST (layering_is_off_by_default)
+{
+    EngineHarness harness;
+    harness.settle();
+
+    juce::AudioBuffer<float> buffer (2, 512);
+    buffer.clear();
+    harness.engine.trigger (1.0f, 0.0f);
+    harness.render (buffer);
+
+    CHECK (! harness.engine.getLayering().isEnabled());
+
+    const std::vector<float> taps (harness.engine.getLayerTapLow(),
+                                   harness.engine.getLayerTapLow() + 512);
+    CHECK (vectorPeak (taps) < 1.0e-9f);
+}
+
+TEST (layering_adds_two_layers_without_overgain)
+{
+    const auto dry = renderLayeredKick (false);
+    const auto wet = renderLayeredKick (true);
+
+    // Ohne Layering tragen die Layer-Taps exakt nichts.
+    CHECK (vectorPeak (dry.low) < 1.0e-9f);
+    CHECK (vectorPeak (dry.high) < 1.0e-9f);
+
+    // Mit Layering tragen beide Layer.
+    CHECK (vectorPeak (wet.low) > 1.0e-4f);
+    CHECK (vectorPeak (wet.high) > 1.0e-5f);
+
+    // Das Ergebnis ist hoerbar anders (kein No-Op).
+    double difference = 0.0;
+    for (size_t i = 0; i < juce::jmin (dry.out.size(), wet.out.size()); ++i)
+        difference += std::abs ((double) wet.out[i] - (double) dry.out[i]);
+
+    CHECK (difference > 1.0e-3);
+
+    // Kein Overgain: Spitze steigt nicht nennenswert (<= +0.5 dB).
+    CHECK (wet.peak <= dry.peak * 1.06f);
+
+    // Nicht "nur lauter": RMS bleibt innerhalb +/-1 dB.
+    CHECK (std::abs (vectorRmsDb (wet.out) - vectorRmsDb (dry.out)) <= 0.9);
+
+    // Alles endlich (kein NaN/Inf).
+    bool allFinite = true;
+    for (const auto sample : wet.out)
+        allFinite = allFinite && std::isfinite (sample);
+
+    CHECK (allFinite);
+}
+
+TEST (layering_depth_runs_from_attack_into_tail_and_presence_is_short)
+{
+    const auto wet = renderLayeredKick (true, 1.0f, 0.3f, 140); // 140 * 512 = ~1.5 s
+
+    // Layer 1 (Depth) traegt im Attack ...
+    const double lowEarly = vectorEnergy (wet.low, 0, 4800);       // 0-100 ms
+    const double lowTail  = vectorEnergy (wet.low, 14400, 28800);  // 300-600 ms
+
+    CHECK (lowEarly > 1.0e-6);
+    CHECK (lowTail > 0.0);          // der Layer darf die ganze Kicklaenge tragen
+    CHECK (lowTail > lowEarly * 1.0e-3);
+
+    // Layer 2 (Presence) ist ein kurzer Attack-/Click-Layer.
+    const double highEarly = vectorEnergy (wet.high, 0, 4800);
+    const double highLate  = vectorEnergy (wet.high, 9600, 28800); // ab 200 ms
+
+    CHECK (highEarly > 1.0e-8);
+    CHECK (highLate < highEarly * 0.01);
+}
+
+TEST (layering_layers_follow_pitch_and_velocity_modulation)
+{
+    // Pitch-Envelope wirkt auf den Depth-Layer genauso wie auf die Basis.
+    const auto flat  = renderLayeredKick (true, 1.0f, 0.0f, 40);
+    const auto swept = renderLayeredKick (true, 1.0f, 0.9f, 40);
+
+    double layerDifference = 0.0;
+    for (size_t i = 0; i < juce::jmin (flat.low.size(), swept.low.size()); ++i)
+        layerDifference += std::abs ((double) flat.low[i] - (double) swept.low[i]);
+
+    CHECK (layerDifference > 1.0e-3);
+
+    // Velocity skaliert beide Layer mit (gleiche Modulation wie die Basis).
+    const auto loud = renderLayeredKick (true, 1.0f, 0.3f, 40);
+    const auto soft = renderLayeredKick (true, 0.5f, 0.3f, 40);
+
+    const float loudPeak = vectorPeak (loud.low);
+    const float softPeak = vectorPeak (soft.low);
+
+    CHECK (loudPeak > 0.0f);
+    CHECK (softPeak < loudPeak * 0.75f);
+    CHECK (softPeak > loudPeak * 0.25f);
+}
+
+//==============================================================================
+// Layering darf die Wahrgenommene Lautheit der Factory-Presets nicht anheben.
+TEST (layering_keeps_loudness_across_factory_presets)
+{
+    auto measureRmsDb = [] (int presetIndex, bool layering)
+    {
+        CernTestProcessor dummy;
+        juce::AudioProcessorValueTreeState apvts (dummy, nullptr, "Params", createLayout());
+        ParameterSmoothing smoothing (apvts);
+        KickSynthesisEngine engine (apvts);
+        PresetManager presets (apvts, engine.getPatchGraph(), engine.getParameterPatchGraph());
+
+        if (! presets.loadFactory (presetIndex))
+            return -100.0f;
+
+        if (auto* parameter = apvts.getParameter (ParameterIDs::layeringEnabled))
+            parameter->setValueNotifyingHost (layering ? 1.0f : 0.0f);
+
+        smoothing.prepare (48000.0);
+        smoothing.setBlockSize (512);
+        engine.prepare (48000.0, 512);
+        engine.setTailLength (2.0f);
+
+        for (int block = 0; block < 20; ++block)
+            smoothing.update();
+
+        constexpr int blockSize = 512;
+        const int totalSamples = 190 * blockSize; // ~2,03 s (ganze Bloecke!)
+        juce::AudioBuffer<float> full (2, totalSamples);
+        full.clear();
+        juce::AudioBuffer<float> blockBuffer (2, blockSize);
+        double nextTrigger = 0.0;
+
+        for (int blockStart = 0; blockStart < totalSamples; blockStart += blockSize)
+        {
+            while (nextTrigger < (double) (blockStart + blockSize))
+            {
+                const int offset = juce::jmax (0, (int) std::lround (nextTrigger) - blockStart);
+                engine.enqueueTrigger (1.0f, 0.0f, offset);
+                nextTrigger += 24000.0; // 1/4 bei 120 BPM
+            }
+
+            smoothing.update();
+            blockBuffer.clear();
+            engine.render (blockBuffer, blockSize, smoothing);
+            full.copyFrom (0, blockStart, blockBuffer, 0, 0, blockSize);
+            full.copyFrom (1, blockStart, blockBuffer, 1, 0, blockSize);
+        }
+
+        return LoudnessMeter::measureLufs (full, 48000.0);
+    };
+
+    for (int preset = 0; preset < 11; ++preset)
+    {
+        const float offLufs = measureRmsDb (preset, false);
+        const float onLufs  = measureRmsDb (preset, true);
+
+        CHECK (std::isfinite (offLufs));
+        CHECK (std::isfinite (onLufs));
+        CHECK (std::abs (onLufs - offLufs) <= 1.0f);
     }
 }
 

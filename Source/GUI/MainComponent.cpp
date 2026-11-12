@@ -139,7 +139,8 @@ MainComponent::MainComponent (CERNAudioProcessor& processorRef,
         ParameterIDs::velToClick,           ParameterIDs::humanize,
         ParameterIDs::oversampleEnabled,    ParameterIDs::fxWidth,
         ParameterIDs::compMix,              ParameterIDs::compAutoMakeup,
-        ParameterIDs::envFollowAttack,      ParameterIDs::envFollowRelease
+        ParameterIDs::envFollowAttack,      ParameterIDs::envFollowRelease,
+        ParameterIDs::layeringEnabled
     });
 
     addSection ("SIDECHAIN", { ParameterIDs::duckDepth, ParameterIDs::duckRelease });
@@ -161,6 +162,8 @@ MainComponent::MainComponent (CERNAudioProcessor& processorRef,
 
     // ---- Displays ----
     addAndMakeVisible (waveformDisplay);
+    waveformDisplay.attachLayeringControl (processor.getAPVTS(),
+                                           ParameterIDs::layeringEnabled);
     addAndMakeVisible (spectrumAnalyzer);
     addAndMakeVisible (envelopeEditor);
 
@@ -444,6 +447,22 @@ void MainComponent::updateDisplays()
             buffers.waveform[(size_t) ((writePos + i) & mask)].load (std::memory_order_relaxed);
 
     waveformDisplay.setSamples (snapshot);
+
+    // ---- Layering: separate Layer-Taps + errechnete Werte (nur Anzeige) ----
+    {
+        std::vector<float> lowSnapshot ((size_t) ringSize, 0.0f);
+        std::vector<float> highSnapshot ((size_t) ringSize, 0.0f);
+
+        for (int i = 0; i < ringSize; ++i)
+        {
+            const int index = (writePos + i) & mask;
+            lowSnapshot[(size_t) i] = buffers.layerLow[(size_t) index].load (std::memory_order_relaxed);
+            highSnapshot[(size_t) i] = buffers.layerHigh[(size_t) index].load (std::memory_order_relaxed);
+        }
+
+        waveformDisplay.setLayerSamples (lowSnapshot, highSnapshot);
+        waveformDisplay.setLayerInfo (processor.getEngine().getLayering().getInfo());
+    }
 
     // ---- Spectrum: FFT auf dem Waveform-Snapshot ----
     std::fill (fftBuffer.begin(), fftBuffer.end(), 0.0f);

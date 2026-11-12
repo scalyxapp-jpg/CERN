@@ -284,13 +284,20 @@ static constexpr auto* duckDepth             = "duckDepth";              // 0–
 static constexpr auto* duckRelease           = "duckRelease";            // 20–500 ms (SND-174)
 
 // ============================================================================
-// 2.23 Mixer (12 Kanäle x 5 Parameter = 60): pro Sound-Modul ein Kanal.
-// Gain 0–2 (1=neutral), Low/MidLow/Mid/High in dB (-24–+24).
+// 2.23 Mixer (13 Kanäle x 6 Parameter = 78 + 1 globale Sidechain-Tiefe)
+// pro Sound-Modul ein Kanal. Gain 0–2 (1=neutral), Low/MidLow/Mid/High in dB.
 // Ans Ende angehängt, um bestehende Indizes stabil zu halten.
 // ============================================================================
 static constexpr int mixerChannelCount = 13;
 inline juce::String mixerId (int channel, const char* param) { return juce::String ("mixer") + juce::String (channel) + param; }
 static constexpr auto* mixerSidechainDepth = "mixerSidechainDepth"; // 0–1, globale Sidechain-Tiefe
+
+// ============================================================================
+// 2.24 Automatisches Layering (1 Bool): blendet zwei vollstaendig aus den
+// Modul-Parametern abgeleitete Zusatz-Layer ein (Depth + Presence).
+// Ans Ende angehaengt, damit bestehende Indizes stabil bleiben.
+// ============================================================================
+static constexpr auto* layeringEnabled = "layeringEnabled"; // bool
 
 /** Reihenfolge der Mixer-Parameter je Kanal (Gain, Low, MidLow, Mid, High, Mute). */
 inline constexpr std::array<const char*, 6> mixerParamOrder { "Gain", "Low", "MidLow", "Mid", "High", "Mute" };
@@ -464,7 +471,7 @@ inline const std::vector<juce::String>& getAllIDs()
         v.push_back (duckDepth);
         v.push_back (duckRelease);
 
-        // Mixer (12 Kanäle × 6 Parameter = 72 + 1 globale Sidechain-Tiefe).
+        // Mixer (13 Kanäle × 6 Parameter = 78 + 1 globale Sidechain-Tiefe).
         // Nach allen bestehenden IDs angehängt.
         for (int i = 0; i < mixerChannelCount; ++i)
         {
@@ -476,6 +483,8 @@ inline const std::vector<juce::String>& getAllIDs()
             v.push_back (mixerId (i, "Mute"));
         }
         v.push_back (mixerSidechainDepth);
+        // Automatisches Layering (1 Bool). Ganz am Ende, Indizes stabil.
+        v.push_back (layeringEnabled);
         return v;
     }();
     return ids;

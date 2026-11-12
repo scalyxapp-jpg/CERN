@@ -94,6 +94,11 @@ public:
 
         std::array<std::atomic<float>, (size_t) waveformSize> waveform {};
         std::atomic<int> waveformWritePos { 0 };
+
+        // Automatisches Layering: separate Taps der beiden Zusatz-Layer,
+        // damit die Waveform-Anzeige sie sichtbar ueberlagern kann.
+        std::array<std::atomic<float>, (size_t) waveformSize> layerLow {};
+        std::array<std::atomic<float>, (size_t) waveformSize> layerHigh {};
     };
     DisplayBuffers& getDisplayBuffers() { return displayBuffers; }
     const DisplayBuffers& getDisplayBuffers() const { return displayBuffers; }

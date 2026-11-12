@@ -458,27 +458,49 @@ Hinweis (MR-003/MR-004/MR-006): Steel ist ein **metallischer Resonator**, kein H
 
 Ein Kanal je klang-erzeugendem Modul. Reihenfolge und IDs (`mixer0Gain` … `mixer12Mute`,
 `mixerSidechainDepth`) stehen **am Ende** von `ParameterIDs::getAllIDs()`, damit
-bestehende Preset-/State-Indizes stabil bleiben (Gesamtzahl: **1308**).
+bestehende Preset-/State-Indizes stabil bleiben (Gesamtzahl: **1309**).
 
-| Kanal | Modul | Parameter |
-|---|---|---|
-| 0 | MEMBRANE | `mixer0Gain`, `mixer0Low`, `mixer0MidLow`, `mixer0Mid`, `mixer0High`, `mixer0Mute` |
-| 1 | BODY | `mixer1…` |
-| 2 | TUBE | `mixer2…` |
-| 3 | SUB | `mixer3…` |
-| 4 | CLICK | `mixer4…` |
-| 5 | DRIVE | `mixer5…` |
-| 6 | EQ | `mixer6…` |
-| 7 | COMP | `mixer7…` |
-| 8 | ROOM | `mixer8…` |
-| 9 | HIGGS | `mixer9…` |
-| 10 | REVERB | `mixer10…` |
-| 11 | MAT ROOM | `mixer11…` |
-| 12 | OUTPUT (Master) | `mixer12…` |
+| Kanal | Modul           | Parameter                                                                          |
+| ----- | --------------- | ---------------------------------------------------------------------------------- |
+| 0     | MEMBRANE        | `mixer0Gain`, `mixer0Low`, `mixer0MidLow`, `mixer0Mid`, `mixer0High`, `mixer0Mute` |
+| 1     | BODY            | `mixer1…`                                                                          |
+| 2     | TUBE            | `mixer2…`                                                                          |
+| 3     | SUB             | `mixer3…`                                                                          |
+| 4     | CLICK           | `mixer4…`                                                                          |
+| 5     | DRIVE           | `mixer5…`                                                                          |
+| 6     | EQ              | `mixer6…`                                                                          |
+| 7     | COMP            | `mixer7…`                                                                          |
+| 8     | ROOM            | `mixer8…`                                                                          |
+| 9     | HIGGS           | `mixer9…`                                                                          |
+| 10    | REVERB          | `mixer10…`                                                                         |
+| 11    | MAT ROOM        | `mixer11…`                                                                         |
+| 12    | OUTPUT (Master) | `mixer12…`                                                                         |
 
-- **Gain**: 0–2 (1,0 = neutral); **Bänder**: −24…+24 dB (0 dB = bit-transparenter Bypass).
-- **`mixerSidechainDepth`**: 0–1, skaliert alle automatischen Ducking-Tiefen.
-- **Sidechain-Beziehungen** (fest): COMP → ROOM/HIGGS/REVERB/MAT ROOM, CLICK → SUB.
+- **Gain**: 0–2 (1,0 = neutral); **Bänder**: −24…+24 dB. Bei 0 dB laufen alle vier Bänder über einen Bypass (bit-transparent, keine Filter-Artefakte); beim Zurückschalten werden die Filterzustände genullt, Koeffizienten nur bei Wert-/Samplerate-Änderung neu berechnet.
+- **`mixerSidechainDepth`**: 0–1, skaliert alle automatischen Ducking-Tiefen (Default 1,0).
+- **Sidechain-Beziehungen** (fest): COMP → ROOM (max. 5,0 dB), HIGGS (4,0 dB), REVERB (5,0 dB), MAT ROOM (4,5 dB). Kein CLICK → SUB mehr (erzeugte ein hörbares Wobbeln des Grundtons und nahm dem Attack Low-End).
+- **Ducking-Kennlinie**: `env / (env + 0,10)` – proportional und monoton, ein lauter Kick duckt tiefer, ein leiser nur wenig (früher: geklemmtes `env/0,35`, dadurch binär). Hüllkurve post-fader, Attack ~1 ms, Release ~90 ms; gemutete Kanäle ducken nicht.
+- **Comp-Bypass**: Der COMP-Kanal führt auch im Bypass das Dry-Signal; das Ducking folgt dem Kick-Bus, nicht dem Kompressor-Gain-Reduction. Ducking bleibt daher bewusst aktiv, wenn der Compressor aus ist.
+- **Anzeige**: Jeder FX-Streifen zeigt im Kopf die Quelle und die aktuelle Tiefe live (`SC COMP -3.2 dB`, 20 Hz). Peak-Meter fallen mit 20 dB/s.
+
+### Layering (1 Parameter)
+
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `layeringEnabled` | Bool | aus | Blendet zwei automatisch abgeleitete Zusatz-Layer ein (L1 Depth + L2 Presence) |
+
+Alle Layer-Werte sind **abgeleitet**, es gibt bewusst keine eigenen Regler:
+
+- **L1 DEPTH** – Sinus auf `fundamentalHz` (bzw. eine Oktave darunter, wenn f0 ≥ 55 Hz),
+  Attack aus `bodyAttack` (×0,8), Decay aus `subDecay` (×1,05), Pegel aus `subLevel`
+  + `driveAmount`, plus kleiner 2. Oberton (TV-Hörbarkeit).
+- **L2 PRESENCE** – bandbegrenztes Rausch-/Ton-Gemisch, Bandlage aus `clickTone`
+  (1,4–7,2 kHz), Attack 0,6–4 ms, Decay aus `clickDecay` (×2,4, 14–110 ms) und
+  0,6–9 ms Delay (Definition statt Doppelklick); Dichte aus `clickDistortion` +
+  `driveAmount` steuert Rausch-/Ton-Anteil.
+- **Pegelneutral**: `baseTrim = 0.985 / sqrt(1 + k1² + k2² + k1)` (kohärente Addition
+  des Depth-Layers auf dem Grundton) auf Membrane+Body; die Layer-Gewichte werden
+  mit demselben Faktor skaliert.
 
 ### Step Sequencer (16 Schritte)
 
@@ -514,7 +536,7 @@ bestehende Preset-/State-Indizes stabil bleiben (Gesamtzahl: **1308**).
 
 - **18 Sektionen**: Membrane, Tube, Pitch Envelope, Click, Body, Sub, Drive, EQ, Comp, Output, Room, Reverb, Material Room, Higgs Field, FEATURES, SIDECHAIN, Sequencer, Global
 - **MIXER-Tab** (Header-Button `MIXER`): 13 Kanalstreifen – einer pro klang-erzeugendem Modul (MEMBRANE, BODY, TUBE, SUB, CLICK, DRIVE, EQ, COMP, ROOM, HIGGS, REVERB, MAT ROOM, OUTPUT). Jeder Streifen hat **Gain** (0–2), **4-Band-EQ** (LOW 120 Hz Shelf, MID-LOW 400 Hz Peak, MID 1.6 kHz Peak, HIGH 6 kHz Shelf, je ±24 dB), **MUTE** und einen Peak-Meter. Der Master-Kanal (OUTPUT) sitzt vor der Output-Stufe; alle Modul-Kanäle sitzen am Modul-Ausgang (Patchbay-Routing bleibt unangetastet, Fan-Out wird nicht doppelt verstärkt).
-- **Automatische Sidechains im Mixer**: `COMP` duckt ROOM/HIGGS/REVERB/MAT ROOM (3,5–4 dB), `CLICK` duckt SUB (2 dB); Tiefe global über den **SIDE-CHAIN**-Regler im Mixer-Kopf (0 = aus). Die Hüllkurve ist post-fader (Attack ~1 ms, Release ~90 ms), gemutete Kanäle ducken nicht.
+- **Automatische Sidechains im Mixer**: `COMP` duckt ROOM/HIGGS/REVERB/MAT ROOM (max. 5,0/4,0/5,0/4,5 dB, proportional zur Quell-Lautstärke); Tiefe global über den **SIDE-CHAIN**-Regler im Mixer-Kopf (0 = aus). Die Hüllkurve ist post-fader (Attack ~1 ms, Release ~90 ms), gemutete Kanäle ducken nicht. Die aktuelle Duck-Tiefe wird pro Streifen live angezeigt (`SC COMP -3.2 dB`).
 - **Higgs-3D-Fläche**: Mexican-Hat-Potential, Cursor per Maus an beliebige Positionen ziehbar; beim Ziehen ändern sich **alle 13 Parameter live**; alle Parameter im Display sichtbar
 - **Waveform-Display**: letzte Attack-Wellenform (Echtzeit, 30 Hz Refresh)
 - **Spectrum-Analyzer**: log-spaced Balken 20 Hz–18 kHz, farbig nach Band
@@ -522,7 +544,8 @@ bestehende Preset-/State-Indizes stabil bleiben (Gesamtzahl: **1308**).
 - **Preset-Auswahl**: Factory-Presets als Dropdown, `SAVE` oeffnet einen Save-As-Dialog (Name + Zielordner unter `~/.config/C.E.R.N/Presets`), `LOAD` laedt eine User-XML von dort (SND-164). Der Preset-Browser listet Init, Factory- und User-Presets (inkl. Unterordner/Kategorien); eine Thumbnail-Waveform ist **geplant** (siehe Roadmap).
 - **Step-Sequencer**: 16 sichtbare Schritte mit Velocity/Gate/Pitch, BPM, Swing, Lauflicht, manueller Schritt-Trigger; Ratchet/Flam/Probability/Length, Grid, Pattern-Kette und MIDI-Clock-Out sind als Parameter/Engine-Feature vorhanden (Step-Editor-UI für Ratchet & Co. noch nicht).
 - **3D-Interface Schwarz-Weiss-Rot** (Details unten), Doppelklick = Reset auf Default
-- **MIXER-Tab** (Header-Button `MIXER`): 13 Kanalstreifen (Membrane, Body, Tube, Sub, Click, Drive, EQ, Comp, Room, Higgs, Reverb, Mat Room, Output) mit je Gain, 4-Band-EQ (Low/Mid-Low/Mid/High, ±24 dB), MUTE und Peak-Meter; horizontales Scrollen, wenn nicht alle Streifen passen. Automatische Sidechains (Comp → Room/Higgs/Reverb/Mat-Room, Click → Sub), Tiefe global über `SIDE-CHAIN` regelbar.
+- **MIXER-Tab** (Header-Button `MIXER`): 13 Kanalstreifen (Membrane, Body, Tube, Sub, Click, Drive, EQ, Comp, Room, Higgs, Reverb, Mat Room, Output) mit je Gain, 4-Band-EQ (Low/Mid-Low/Mid/High, ±24 dB, 0 dB = bit-transparenter Bypass), MUTE und Peak-Meter; horizontales Scrollen, wenn nicht alle Streifen passen. Automatische Sidechains (Comp → Room/Higgs/Reverb/Mat-Room, max. 5,0/4,0/5,0/4,5 dB), Tiefe global über `SIDE-CHAIN` regelbar; Live-Anzeige der Duck-Tiefe im Streifenkopf.
+- **LAYERING (Checkbox "LAYERING ENABLED" in der Waveform-Anzeige)**: legt zwei vollständig automatisch berechnete Zusatz-Layer unter/über die Basis-Wave – **L1 DEPTH** (Grundton-Stützung, langer Decay, trägt bis in Rumble/Subbass) und **L2 PRESENCE** (kurzer bandbegrenzter Textur-Layer für Definition in Attack/Click). Frequenz, Länge, Attack, Decay, Pegel, Dichte und Bandlage werden aus fundamentalHz, Sub-, Body-, Click- und Drive-Parametern abgeleitet; beide Layer folgen exakt derselben Modulation (Pitch-Envelope, Glide, Velocity->Pitch, Velocity) wie die Basis. Die Waveform-Anzeige überlagert beide Layer farbig und zeigt die errechneten Werte (Hz · ms · dB · Dichte) als Legende. Die Pegel werden teil-kohärent kompensiert (Basis-Trim), damit das Layering voller statt lauter klingt: gemessen über alle 11 Factory-Presets bleibt die Lautheit innerhalb **+0,8 dB**.
 - **Resizable Fenster** (min. 700x500, Standard 1100x750), mono-kompatibler Low-End
 
 ### 3D-Interface & Assets (2026-11-12)

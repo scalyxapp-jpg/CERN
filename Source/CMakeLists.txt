@@ -10,6 +10,7 @@ set(CERN_COMMON_SOURCES
     DSP/PatchGraph.cpp
     DSP/ParameterPatchGraph.cpp
     DSP/MixerStage.cpp
+    DSP/LayeringStage.cpp
 
     Sequencer/StepSequencer.cpp
 
@@ -254,6 +255,7 @@ add_executable(CERNTests
     ${CMAKE_CURRENT_SOURCE_DIR}/DSP/PatchGraph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/DSP/ParameterPatchGraph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/DSP/MixerStage.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/DSP/LayeringStage.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Sequencer/StepSequencer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Presets/PresetManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/GUI/HiggsField3D.cpp
