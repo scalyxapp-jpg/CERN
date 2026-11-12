@@ -106,6 +106,7 @@ void KickSynthesisEngine::prepare (double sampleRate, int samplesPerBlock)
     reverb.prepare (sampleRate, samplesPerBlock);
     materialRoom.prepare (sampleRate, samplesPerBlock);
     higgs.prepare (sampleRate);
+    mixer.prepare (sampleRate);
 
     // Room: 4-Tap-Netzwerk, max. 600 ms Tap-Abstand (SND-091..100).
     roomBufferSize = juce::jmax (8, (int) std::ceil (sampleRate * 0.65) + 4);
@@ -143,6 +144,7 @@ void KickSynthesisEngine::reset()
     reverb.reset();
     materialRoom.reset();
     higgs.reset();
+    mixer.reset();
 
     // Sub
     subPhase = 0.0f;
@@ -566,9 +568,13 @@ float KickSynthesisEngine::processEQSample (float x)
     eqHighShelfState += (1.0f - eqAirCoeff) * (x0 - eqHighShelfState);
     const float airBand = x0 - eqHighShelfState;
 
-    float y = (x0 + eqSubGainLin * subBand
-                  + eqPunchGainLin * punchBand
-                  + eqAirGainLin * airBand) * eqMakeupNorm;
+    // Wichtig: die Makeup-Normierung darf NUR die Boost-Summe skalieren, nicht
+    // das Dry-Signal. Sonst wirkt der Sub-Boost als breitbandiger Cut
+    // (-4,1 dB, am Grundton -4,7 dB) und der Kick verliert genau die Tiefe,
+    // die der Regler zufuegen soll.
+    float y = x0 + eqMakeupNorm * (eqSubGainLin * subBand
+                                   + eqPunchGainLin * punchBand
+                                   + eqAirGainLin * airBand);
 
     if (! std::isfinite (y))
     {
@@ -1338,6 +1344,9 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
     if (! parameterModulationPrepared)
         prepareParameterModulation (smoothing, numSamples);
 
+    // ---- Mixer-Parameter (einmal pro Block) ----
+    mixer.updateParameters (smoothing);
+
     // ---- Einmal pro Block: Parameter lesen (Reihenfolge gemäß §4) ----
     const float membraneTension      = smoothing.getById (ParameterIDs::membraneTension);
     const float membraneRadius       = smoothing.getById (ParameterIDs::membraneRadius);
@@ -1791,14 +1800,23 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                                                            membraneNonlinearity, membraneStiffness);
 
                     // Body ist ein eigener Resonator (Quelle mit eigenem Enable).
+                    float bodySample = 0.0f;
+
                     if (bodyEnabled)
-                        membraneSample += processBody (bodyLevel, bodyPitchRatio);
+                        bodySample = processBody (bodyLevel, bodyPitchRatio);
 
-                    if (! std::isfinite (membraneSample))
-                        membraneSample = 0.0f;
+                    // Mixer: Membran und Body sind getrennte Kanaele
+                    // (je eigener Lautstaerke + 4-Band-EQ im Mixdown).
+                    membraneSample = mixer.processMono ((int) MixerStage::Channel::Membrane, membraneSample);
+                    bodySample = mixer.processMono ((int) MixerStage::Channel::Body, bodySample);
 
-                    membraneBusSample = membraneSample; // SND-174: Duck-Quelle (|Membrane+Body|)
-                    jacks[(size_t) Jack::MembraneOut] = { membraneSample, membraneSample };
+                    float membraneBus = membraneSample + bodySample;
+
+                    if (! std::isfinite (membraneBus))
+                        membraneBus = 0.0f;
+
+                    membraneBusSample = membraneBus; // SND-174: Duck-Quelle (|Membrane+Body|)
+                    jacks[(size_t) Jack::MembraneOut] = { membraneBus, membraneBus };
                     break;
                 }
 
@@ -1822,13 +1840,15 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                     if (! std::isfinite (tubeSample))
                         tubeSample = 0.0f;
 
+                    tubeSample = mixer.processMono ((int) MixerStage::Channel::Tube, tubeSample);
                     jacks[(size_t) Jack::TubeOut] = { tubeSample, tubeSample };
                     break;
                 }
 
                 case ModuleIndex::Sub:
                 {
-                    const float subSample = subEnabled ? processSub (subLevel, subShape) : 0.0f;
+                    float subSample = subEnabled ? processSub (subLevel, subShape) : 0.0f;
+                    subSample = mixer.processMono ((int) MixerStage::Channel::Sub, subSample);
                     subBusSample = subSample; // SND-174: Duck-Quelle (|Sub|)
                     jacks[(size_t) Jack::SubOut] = { subSample, subSample };
                     break;
@@ -1846,6 +1866,7 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                     if (! std::isfinite (clickSample))
                         clickSample = 0.0f;
 
+                    clickSample = mixer.processMono ((int) MixerStage::Channel::Click, clickSample);
                     jacks[(size_t) Jack::ClickOut] = { clickSample, clickSample };
                     break;
                 }
@@ -1860,10 +1881,11 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                     // Erkennung läuft auf dem Mono-Bus (Stereo-Link identisch).
                     const float bus = transientShaper.process (in, in).first;
 
-                    const float driveSample = driveEnabled
+                    float driveSample = driveEnabled
                         ? processDrive (bus, driveAmount, driveMix, driveCharacter)
                         : bus; // Bypass: geformtes Signal unverändert durchleiten.
 
+                    driveSample = mixer.processMono ((int) MixerStage::Channel::Drive, driveSample);
                     jacks[(size_t) Jack::DriveOut] = { driveSample, driveSample };
                     break;
                 }
@@ -1871,7 +1893,8 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                 case ModuleIndex::Eq:
                 {
                     const float in = meanIn (Jack::EqIn);
-                    const float eqSample = eqEnabled ? processEQSample (in) : in;
+                    float eqSample = eqEnabled ? processEQSample (in) : in;
+                    eqSample = mixer.processMono ((int) MixerStage::Channel::Eq, eqSample);
                     jacks[(size_t) Jack::EqOut] = { eqSample, eqSample };
                     break;
                 }
@@ -1892,6 +1915,7 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                         compOut.r = compResult.second;
                     }
 
+                    mixer.processStereo ((int) MixerStage::Channel::Compressor, compOut.l, compOut.r);
                     jacks[(size_t) Jack::CompOut] = compOut;
                     break;
                 }
@@ -1905,6 +1929,7 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                         ? processRoomRumble (inMix)
                         : StereoMix {};
                     applyFxWidth (fxWidthValue, roomWet.l, roomWet.r);
+                    mixer.processStereo ((int) MixerStage::Channel::Room, roomWet.l, roomWet.r);
 
                     jacks[(size_t) Jack::RoomOut] = roomWet;
                     break;
@@ -1923,6 +1948,7 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                         higgsOut = { higgsResult.first, higgsResult.second };
                     }
 
+                    mixer.processStereo ((int) MixerStage::Channel::Higgs, higgsOut.l, higgsOut.r);
                     jacks[(size_t) Jack::HiggsOut] = higgsOut;
                     break;
                 }
@@ -1935,6 +1961,7 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                         ? reverb.process (mix.l, mix.r)
                         : std::make_pair (0.0f, 0.0f);
                     applyFxWidth (fxWidthValue, revResult.first, revResult.second);
+                    mixer.processStereo ((int) MixerStage::Channel::Reverb, revResult.first, revResult.second);
 
                     jacks[(size_t) Jack::ReverbOut] = { revResult.first, revResult.second };
                     break;
@@ -1949,6 +1976,7 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                         ? materialRoom.process (kick.l, kick.r, rumble.l, rumble.r)
                         : std::make_pair (0.0f, 0.0f);
                     applyFxWidth (fxWidthValue, wet.first, wet.second);
+                    mixer.processStereo ((int) MixerStage::Channel::MaterialRoom, wet.first, wet.second);
 
                     jacks[(size_t) Jack::MaterialRoomOut] = { wet.first, wet.second };
                     break;
@@ -1959,6 +1987,9 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                     auto mix = sumTo (Jack::OutputIn);
                     float outL = outputEnabled ? mix.l : 0.0f;
                     float outR = outputEnabled ? mix.r : 0.0f;
+
+                    // Master-Kanal des Mixers (EQ + Trim) vor der Output-Stufe.
+                    mixer.processStereo ((int) MixerStage::Channel::Output, outL, outR);
 
                     // SND-174: internes Sidechain/Ducking. Quelle = das
                     // getriggerte Kick/Sub-Signal (Membrane+Body+Sub-Sample

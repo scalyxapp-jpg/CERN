@@ -1,3 +1,14 @@
+## Mixer-Tab (2026-11-12)
+
+- [x] MixerStage (DSP): 13 Kanäle, Gain + 4-Band-EQ (RBJ-Shelf/Peak, 0 dB = transparent), Mute
+- [x] Automatische Sidechains: COMP→ROOM/HIGGS/REVERB/MATROOM, CLICK→SUB; globaler Sidechain-Regler
+- [x] Engine-Integration: pro Modul am Modul-Ausgang (Body separat), Master-Kanal vor Output
+- [x] 79 neue APVTS-Parameter, ans Ende von getAllIDs() (1308 gesamt, Indizes stabil)
+- [x] MixerView-GUI (13 Streifen, EQ-Knobs, Fader, Mute, Peak-Meter, Sidechain-Label) + MIXER-Button
+- [x] Factory-Presets neu kalibriert (Loudness-Streuung ≤1,5 dB über alle 11 Presets)
+- [x] Sound-Engineer-Review: EQ-Makeup-Fix (-4,7 dB Bassverlust behoben), Higgs-Default aus,
+      Tube-Metallik reduziert, Pitch-Sweep bei Presets auf ≤0,55 begrenzt
+
 # CERN VST3 - Neubau nach Dokumentation
 
 ## Ziel
@@ -336,27 +347,13 @@ Reverb/FDN, Engine-Integration, Build/Test, Doku). Ergebnis je Prüfbereich:
       PowerSwitch auf Palette + Tiefe umgestellt
 - [x] `CERNPreview`-Harness (headless PNG-Render) + Screenshots 1400x900/700x500
 
-### Design-Review-Fortsetzung (2026-11-12)
+### Design-Review-Fortsetzung (2026-11-12, Session 2)
 
-- [x] Screenshots (CERNPreview) erstellt: 1400×900, 1100×750, 900×650, 700×500 sowie
-      Patchbay, Parameter-CV, Material-Room, Scrollbottom/Footer, MORPH (1100×750, 700×500).
-      Ablage: `/tmp/opencode-cern-review/rev/`
-- [x] Vision-Check: `local-vision`/llama-swap nicht erreichbar (Connection refused) →
-      Gegenprüfung mit `nim-nemotron-vision`. Geprüft: Logo, Überlappungen/Clipping,
-      Lesbarkeit, Header <980 px mit MORPH sichtbar, Patchbay (Material Room IN KICK/IN RUMBLE,
-      Titel über Kabeln), Parameter-CV (Inspector/SRC/DST), Envelope-Info, Higgs-Legende,
-      Meter/Footer – keine neuen Layout-Fehler im aktuellen Stand festgestellt.
-- [x] Regressions-Check (statisch, kein Quellcode geändert): `MainComponent::MacroPanel::applyMacro`
-      schreibt Zielparameter + `macro1…5` (APVTS) per `setValueNotifyingHost`; `ParameterPatchGraph`
-      nutzt LFO/Envelope-Follower/Makros als virtuelle CV-Quellen (APVTS-gespiegelt); Header-Buttons
-      (Trigger/Preset/Save/Load/Patchbay/Audio/A/B/RND/RENDER) verdrahtet; Patch-Default 17 Kabel
-      inkl. `MaterialRoomKickIn`←CompOut und `MaterialRoomRumbleIn`←RoomOut.
-- [x] Standalone-Xvfb-SIGSEGV reproduziert (Exit 139). Backtrace (`xvfb-run -a gdb -batch`):
-      `#0 KickSynthesisEngine::reset()` ← `#1 CERNAudioProcessor::releaseResources()` ←
-      `#2 juce::AudioProcessorPlayer::audioDeviceAboutToStart(juce::AudioIODevice*)` ←
-      `#3 juce::AudioDeviceManager::addAudioCallback(juce::AudioIODeviceCallback*)` ←
-      `#4 CERNStandaloneApp::initialise`. Fix (DSP/Processor): `releaseResources()` führt
-      `reset()`-Pfad nur aus, wenn `prepareToPlay()` gelaufen ist (`prepared`-Guard).
-- [x] Final-Build mit Lock: `flock -w 900 /tmp/technokick-build.lock cmake --build build -j2 --target CERN_All CERNStandalone CERNTests` erfolgreich.
-- [x] Tests nach Update auf 11 Factory-Presets **grün**: `./build/Source/CERNTests`
-      1.175.210 Passed / 0 Failed; `ctest --test-dir build --output-on-failure` 1/1 Passed.
+- [x] Screenshots (CERNPreview, Nachher) erstellt: 1400×900, 1100×750, 900×650, 700×500, 940×700 (<980 px Header), Patchbay-Audio, Parameter-CV, Material-Room, Footer-Crop/Scrollbottom, MORPH (A/B belegt). Ablage Vorher: `/tmp/user/1000/opencode/review-2026-11-12/`, Nachher: `/tmp/user/1000/opencode/review-2026-11-12/after/`.
+- [x] Vision-Check: `local-vision`/llama-swap zeitweise nicht erreichbar (HTTP 500/circuit open/Cold-Start) → Gegenprüfung/Fallback mit `nim-nemotron-vision` (einzelne Requests Timeout/trunkiert, Kernaussagen verifiziert).
+- [x] UI-Fixes (direkt umgesetzt): Grid-Dichte bei großen Breiten erhöht (`SectionPanel::rowHeightForWidth` 740/620 → 132/118 px), Preset-Combo verbreitert + `positionComboBoxText` (Pfeil/Text-Overlap vermieden), Envelope-Infozeile mit mehr Platz (kein Abschneiden), Higgs-Parameterliste mit vertikalem Puffer (kein Zeilen-Clipping), Meter-Hint mit Fallback/Short-Form (kein Rechts-Clipping), Footer-Reihenbeschriftung VEL/PITCH ergänzt, Metall-/Grain-Assets kantengeglättet/tilebarer nachbearbeitet (`Assets/build_assets.py`), `CERNPreview`-Modi `material`/`scrollbottom` ergänzt.
+- [x] Regressions-Check (statisch, Scope GUI/Preview/Assets): Header-Buttons inkl. PRESET/A/B/A>B/RND/MORPH/RENDER/TRIGGER/PATCHBAY/AUDIO vorhanden/verdrahtet; Header-Umschaltung `<980 px` zweizeilig (`useTwoRows`); Macro→`macro1…5`-Write im GUI; `lfoRate`/`lfoDepth` in Parameter-IDs/Layout/UI vorhanden; Bounce-Ziel `~/Documents/C.E.R.N-Bounce.wav`; Patch-Default 17 Kabel (`PatchGraph`); Scrollbar im Sektions-Viewport aktiv.
+- [x] MORPH: bei belegten A/B-Slots Slider/Label sichtbar und layout-korrekt (Screenshot `after/morph.png`, Vision bestätigt). Material-Room: Front-Sektion/ON-Toggle/Controls sichtbar (`after/material.png`); Patchbay zeigt `IN KICK`/`IN RUMBLE` am Material-Room-Modul (Vorher-Review `patch-audio.png`). Patchbay/Parameter-CV ohne grobe Overlaps/Clipping (Screenshots/Vision).
+- [x] Standalone-Xvfb-SIGSEGV reproduziert (Exit 139), Backtrace `xvfb-run -a gdb -batch -ex run -ex "bt full"`: `#0 KickSynthesisEngine::reset()` ← `#1 CERNAudioProcessor::releaseResources()` ← `#2 juce::AudioProcessorPlayer::audioDeviceAboutToStart` ← `#3 juce::AudioDeviceManager::addAudioCallback` ← `CERNStandaloneApp::initialise` (Ursache außerhalb GUI-Scope, kein UI-seitiger Fix).
+- [x] Build (flock, `-j2`): `cmake --build build -j2 --target CERN_All CERNStandalone CERNTests` und `CERNPreview` erfolgreich (UI-Targets gelinkt).
+- [!] Tests: `./build/Source/CERNTests` → **1.175.207 Passed / 3 Failed** (alle in `preset_manager_factory_presets`/`factory_presets_include_higgs_and_parameter_patch`: Erwartung 7, `getNumFactoryPresets()==4` laut aktuellem `Source/Presets/PresetManager.cpp` im Arbeitsbaum). `ctest --test-dir build --output-on-failure` → 0/1. **Außerhalb GUI-Scope** (Presets/Tests nicht geändert); kein Fix vorgenommen.

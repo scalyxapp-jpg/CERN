@@ -454,6 +454,32 @@ Kick / Rumble / beides.
 
 Hinweis (MR-003/MR-004/MR-006): Steel ist ein **metallischer Resonator**, kein Hall. Der Wet-Pfad ist mit einem LowCut bei 100 Hz (2. Ordnung) geschuetzt, damit er den 20–100-Hz-Druck des Dry-Signals nicht ausloescht oder aufblaeht; Sub-Druck kommt ausschliesslich aus dem Dry-Signal. Bei hohem Mix bleibt trotzdem Gain-Staging sinnvoll. α unverändert. Modell ist **phänomenologisch** (Material-Charakter als Klangmetapher), keine raumakustische Simulation. **MR-013:** Width 0.5 = neutral, Seitenfaktor gekappt auf max 1.75 bei Width 1.0. **MR-020/056:** `IN KICK = CompOut` (Pre-Output), `IN RUMBLE = RoomOut` (Room-Tail; bei ROOM-Off stumm). **MR-030:** Grumble-Pan nutzt konstante Pan-Leistung (cos/sin). **MR-031:** Grumble-Pan geslewtes (~5 ms). **MR-033:** `grumbleLevel > 0.7` kann stark im Sub auftragen — Gain-Staging beachten. **MR-035:** starker Kick-Transient randomisiert Grumble-Phase deterministisch per LCG. **MR-043:** Size-Sweep erzeugt metallischen Comb-Sweep/Wub. **MR-050/053:** verifiziert (Verhalten entspricht Spezifikation). **MR-051:** **CV:** Velocity → `grumbleLevel` (über Parameter-CV/Modulation). **MR-052:** Pan A/B Endpunkte, Depth 0 = Mitte zwischen A und B. **MR-095:** Layer Rumble hängt von RoomOut/Room ab; bei ausgeschaltetem ROOM ist der Rumble-Eingang stumm. **MR-040/041/042/005:** bewusst unverändert (Materialtabelle/α, kein Dry-Eingriff, kein Fan-in-Normalisierung, keine impliziten Claims).
 
+### Mixer (13 × 6 + 1 = 79 Parameter)
+
+Ein Kanal je klang-erzeugendem Modul. Reihenfolge und IDs (`mixer0Gain` … `mixer12Mute`,
+`mixerSidechainDepth`) stehen **am Ende** von `ParameterIDs::getAllIDs()`, damit
+bestehende Preset-/State-Indizes stabil bleiben (Gesamtzahl: **1308**).
+
+| Kanal | Modul | Parameter |
+|---|---|---|
+| 0 | MEMBRANE | `mixer0Gain`, `mixer0Low`, `mixer0MidLow`, `mixer0Mid`, `mixer0High`, `mixer0Mute` |
+| 1 | BODY | `mixer1…` |
+| 2 | TUBE | `mixer2…` |
+| 3 | SUB | `mixer3…` |
+| 4 | CLICK | `mixer4…` |
+| 5 | DRIVE | `mixer5…` |
+| 6 | EQ | `mixer6…` |
+| 7 | COMP | `mixer7…` |
+| 8 | ROOM | `mixer8…` |
+| 9 | HIGGS | `mixer9…` |
+| 10 | REVERB | `mixer10…` |
+| 11 | MAT ROOM | `mixer11…` |
+| 12 | OUTPUT (Master) | `mixer12…` |
+
+- **Gain**: 0–2 (1,0 = neutral); **Bänder**: −24…+24 dB (0 dB = bit-transparenter Bypass).
+- **`mixerSidechainDepth`**: 0–1, skaliert alle automatischen Ducking-Tiefen.
+- **Sidechain-Beziehungen** (fest): COMP → ROOM/HIGGS/REVERB/MAT ROOM, CLICK → SUB.
+
 ### Step Sequencer (16 Schritte)
 
 | ID                                   | Bereich                      | Default           | Bedeutung                                                         |
@@ -487,6 +513,8 @@ Hinweis (MR-003/MR-004/MR-006): Steel ist ein **metallischer Resonator**, kein H
 ## GUI-Features
 
 - **18 Sektionen**: Membrane, Tube, Pitch Envelope, Click, Body, Sub, Drive, EQ, Comp, Output, Room, Reverb, Material Room, Higgs Field, FEATURES, SIDECHAIN, Sequencer, Global
+- **MIXER-Tab** (Header-Button `MIXER`): 13 Kanalstreifen – einer pro klang-erzeugendem Modul (MEMBRANE, BODY, TUBE, SUB, CLICK, DRIVE, EQ, COMP, ROOM, HIGGS, REVERB, MAT ROOM, OUTPUT). Jeder Streifen hat **Gain** (0–2), **4-Band-EQ** (LOW 120 Hz Shelf, MID-LOW 400 Hz Peak, MID 1.6 kHz Peak, HIGH 6 kHz Shelf, je ±24 dB), **MUTE** und einen Peak-Meter. Der Master-Kanal (OUTPUT) sitzt vor der Output-Stufe; alle Modul-Kanäle sitzen am Modul-Ausgang (Patchbay-Routing bleibt unangetastet, Fan-Out wird nicht doppelt verstärkt).
+- **Automatische Sidechains im Mixer**: `COMP` duckt ROOM/HIGGS/REVERB/MAT ROOM (3,5–4 dB), `CLICK` duckt SUB (2 dB); Tiefe global über den **SIDE-CHAIN**-Regler im Mixer-Kopf (0 = aus). Die Hüllkurve ist post-fader (Attack ~1 ms, Release ~90 ms), gemutete Kanäle ducken nicht.
 - **Higgs-3D-Fläche**: Mexican-Hat-Potential, Cursor per Maus an beliebige Positionen ziehbar; beim Ziehen ändern sich **alle 13 Parameter live**; alle Parameter im Display sichtbar
 - **Waveform-Display**: letzte Attack-Wellenform (Echtzeit, 30 Hz Refresh)
 - **Spectrum-Analyzer**: log-spaced Balken 20 Hz–18 kHz, farbig nach Band
@@ -494,6 +522,7 @@ Hinweis (MR-003/MR-004/MR-006): Steel ist ein **metallischer Resonator**, kein H
 - **Preset-Auswahl**: Factory-Presets als Dropdown, `SAVE` oeffnet einen Save-As-Dialog (Name + Zielordner unter `~/.config/C.E.R.N/Presets`), `LOAD` laedt eine User-XML von dort (SND-164). Der Preset-Browser listet Init, Factory- und User-Presets (inkl. Unterordner/Kategorien); eine Thumbnail-Waveform ist **geplant** (siehe Roadmap).
 - **Step-Sequencer**: 16 sichtbare Schritte mit Velocity/Gate/Pitch, BPM, Swing, Lauflicht, manueller Schritt-Trigger; Ratchet/Flam/Probability/Length, Grid, Pattern-Kette und MIDI-Clock-Out sind als Parameter/Engine-Feature vorhanden (Step-Editor-UI für Ratchet & Co. noch nicht).
 - **3D-Interface Schwarz-Weiss-Rot** (Details unten), Doppelklick = Reset auf Default
+- **MIXER-Tab** (Header-Button `MIXER`): 13 Kanalstreifen (Membrane, Body, Tube, Sub, Click, Drive, EQ, Comp, Room, Higgs, Reverb, Mat Room, Output) mit je Gain, 4-Band-EQ (Low/Mid-Low/Mid/High, ±24 dB), MUTE und Peak-Meter; horizontales Scrollen, wenn nicht alle Streifen passen. Automatische Sidechains (Comp → Room/Higgs/Reverb/Mat-Room, Click → Sub), Tiefe global über `SIDE-CHAIN` regelbar.
 - **Resizable Fenster** (min. 700x500, Standard 1100x750), mono-kompatibler Low-End
 
 ### 3D-Interface & Assets (2026-11-12)
@@ -518,13 +547,17 @@ Hinweis (MR-003/MR-004/MR-006): Steel ist ein **metallischer Resonator**, kein H
   Nachbearbeitung/Freistellen via `Assets/build_assets.py`); eingebunden ueber
   `juce_add_binary_data(CERNAssets …)`.
 - **Visuelle Pruefung:** `CERNPreview <out.png> <w> <h> [patch|patchcv|morph|material|scrollbottom]`
-  rendert die echte `MainComponent` headless. Design-Review (2026-11-12): Screenshots
-  1400×900, 1100×750, 900×650, 700×500 sowie Patchbay, Parameter-CV, Material-Room,
-  Footer/Scrollbottom und MORPH (<980 px Header) geprüft; Vision-Gegencheck via
-  `nim-nemotron-vision` (`local-vision`/llama-swap nicht erreichbar). Standalone unter
-  Xvfb weiterhin nicht startbar (SIGSEGV, Exit 139): Backtrace `#0 KickSynthesisEngine::reset()`
-  ← `CERNAudioProcessor::releaseResources()` ← `juce::AudioProcessorPlayer::audioDeviceAboutToStart`
-  ← `juce::AudioDeviceManager::addAudioCallback` ← `CERNStandaloneApp::initialise` (Fix außerhalb GUI-Scope).
+  rendert die echte `MainComponent` headless. Design-Review (2026-11-12, fortgesetzt):
+  Screenshots 1400×900, 1100×750, 900×650, 700×500, 940×700 (<980 px, zweizeilig) sowie
+  Patchbay, Parameter-CV, Material-Room, Footer-Crop/Scrollbottom und MORPH (A/B belegt)
+  geprüft (Vision: `local-vision`/`nim-nemotron-vision`, je nach Verfügbarkeit). UI-Fixes:
+  dichtere Sektionen bei ≥1400 px, lesbare Envelope-/Higgs-/Meter-/Footer-Bereiche,
+  Preset-Combo ohne Pfeil-Overlap, Footer VEL/PITCH-Labels, nachbearbeitete Metall/Grain-Assets.
+  Standalone unter Xvfb weiterhin nicht startbar (SIGSEGV, Exit 139): Backtrace
+  `#0 KickSynthesisEngine::reset()` ← `CERNAudioProcessor::releaseResources()` ←
+  `juce::AudioProcessorPlayer::audioDeviceAboutToStart` ←
+  `juce::AudioDeviceManager::addAudioCallback` ← `CERNStandaloneApp::initialise`
+  (Ursache außerhalb GUI-Scope).
 
 ## Factory Presets (7)
 

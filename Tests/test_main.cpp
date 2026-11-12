@@ -883,7 +883,9 @@ TEST (module_enable_defaults)
     checkDefault (ParameterIDs::outputEnabled, true);
     checkDefault (ParameterIDs::roomEnabled, true);
     checkDefault (ParameterIDs::reverbEnabled, true);
-    checkDefault (ParameterIDs::higgsEnabled, true);
+    // Higgs ist per Default AUS (Klangbild: zuvor metallisch durch parallele
+    // Oktav-Resonanz). Der User kann ihn im HIGGS-Tab/Modul aktivieren.
+    checkDefault (ParameterIDs::higgsEnabled, false);
 }
 
 //==============================================================================
@@ -2975,7 +2977,7 @@ TEST (higgs_lfo_rate_and_depth_affect_output)
 }
 
 //==============================================================================
-// SND-006: Loudness-Streuung über die 7 Factory-Presets <= 1.5 dB.
+// SND-006: Loudness-Streuung über alle Factory-Presets <= 1.5 dB.
 TEST (factory_presets_loudness_spread)
 {
     auto measurePreset = [] (int presetIndex)
@@ -3030,10 +3032,9 @@ TEST (factory_presets_loudness_spread)
     float minLufs = 1.0e9f;
     float maxLufs = -1.0e9f;
 
-    for (int preset = 0; preset < 7; ++preset)
+    for (int preset = 0; preset < 11; ++preset)
     {
         const float lufs = measurePreset (preset);
-        fprintf (stderr, "LD preset %d lufs %.2f\n", preset, lufs);
         CHECK (std::isfinite (lufs));
         CHECK (lufs > -40.0f && lufs < 0.0f);
         minLufs = juce::jmin (minLufs, lufs);
