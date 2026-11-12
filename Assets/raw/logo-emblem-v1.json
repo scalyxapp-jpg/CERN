@@ -1,0 +1,34 @@
+{
+  "id": "20261112-150350-ood14",
+  "tool": "generate_image",
+  "kind": "generated",
+  "created": "2026-11-12T15:03:50.794Z",
+  "prompt": {
+    "original": "Minimal geometric emblem logo icon for a physics-inspired music plugin: two thin interlocking circular particle-collision rings crossing at the centre, a small bright red glowing node at the intersection, crisp white ring strokes, flat vector style, perfectly centred, symmetrical, sharp clean edges, isolated on transparent background, no text, no letters, no words, no watermark",
+    "used": "Minimal geometric emblem logo icon for a physics-inspired music plugin: two thin interlocking circular particle-collision rings crossing at the centre, a small bright red glowing node at the intersection, crisp white ring strokes, flat vector style, perfectly centred, symmetrical, sharp clean edges, isolated on transparent background, no text, no letters, no words, no watermark, vector logo, flat design, centered composition, minimal shapes, crisp clean edges, plain background",
+    "negative": "3d, gradient noise, photographic, cluttered, busy background, low resolution",
+    "style": "logo",
+    "qualityBoost": false,
+    "autoEnhanced": false,
+    "exactText": null
+  },
+  "model": "black-forest-labs/flux.2-klein-4b",
+  "size": "1024x1024",
+  "seed": 1336290611,
+  "contentType": "image/jpeg",
+  "bytes": 40002,
+  "aspectRatio": null,
+  "resolution": null,
+  "qualityPreset": null,
+  "variationIndex": null,
+  "sourceImages": null,
+  "estimatedPollen": {
+    "known": true,
+    "perImage": 0.005,
+    "total": 0.005
+  },
+  "fallback": {
+    "used": false,
+    "model": "black-forest-labs/flux.2-klein-4b"
+  }
+}

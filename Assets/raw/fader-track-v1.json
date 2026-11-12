@@ -1,0 +1,34 @@
+{
+  "id": "20261112-150722-8gl8w",
+  "tool": "generate_image",
+  "kind": "generated",
+  "created": "2026-11-12T15:07:22.594Z",
+  "prompt": {
+    "original": "Dark anodised fader track texture, narrow vertical slot with fine horizontal brushed metal grain, near-black gunmetal, subtle edge highlights, flat orthographic macro shot, seamless vertical strip, no text, no numbers, no markings",
+    "used": "Dark anodised fader track texture, narrow vertical slot with fine horizontal brushed metal grain, near-black gunmetal, subtle edge highlights, flat orthographic macro shot, seamless vertical strip, no text, no numbers, no markings, highly detailed, sharp focus, professional composition, balanced exposure, rich color depth",
+    "negative": "blurry, out of focus, low resolution, jpeg artifacts, watermark, signature, caption, distorted lettering, deformed, disfigured, bad anatomy, extra limbs, extra fingers, fused fingers, oversaturated, cluttered, low contrast",
+    "style": "none",
+    "qualityBoost": true,
+    "autoEnhanced": false,
+    "exactText": null
+  },
+  "model": "black-forest-labs/flux.2-klein-4b",
+  "size": "256x1024",
+  "seed": 749935346,
+  "contentType": "image/jpeg",
+  "bytes": 29343,
+  "aspectRatio": null,
+  "resolution": null,
+  "qualityPreset": null,
+  "variationIndex": null,
+  "sourceImages": null,
+  "estimatedPollen": {
+    "known": true,
+    "perImage": 0.005,
+    "total": 0.005
+  },
+  "fallback": {
+    "used": false,
+    "model": "black-forest-labs/flux.2-klein-4b"
+  }
+}

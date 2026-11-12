@@ -1,0 +1,34 @@
+{
+  "id": "20261112-150345-i85zd",
+  "tool": "generate_image",
+  "kind": "generated",
+  "created": "2026-11-12T15:03:45.169Z",
+  "prompt": {
+    "original": "Brushed aluminium rotary knob cap texture, circular machined metal disc, fine concentric lathe rings, dark titanium with subtle radial brushing, soft specular highlight from upper left, flat photo of a round metal surface filling the frame, no text, no numbers, no background",
+    "used": "Brushed aluminium rotary knob cap texture, circular machined metal disc, fine concentric lathe rings, dark titanium with subtle radial brushing, soft specular highlight from upper left, flat photo of a round metal surface filling the frame, no text, no numbers, no background, commercial product photograph, seamless studio background, softbox lighting, controlled reflections, ultra sharp focus, highly detailed, sharp focus, professional composition, balanced exposure, rich color depth",
+    "negative": "blurry, out of focus, low resolution, jpeg artifacts, watermark, signature, caption, distorted lettering, deformed, disfigured, bad anatomy, extra limbs, extra fingers, fused fingers, oversaturated, cluttered, low contrast",
+    "style": "product",
+    "qualityBoost": true,
+    "autoEnhanced": false,
+    "exactText": null
+  },
+  "model": "black-forest-labs/flux.2-klein-4b",
+  "size": "1024x1024",
+  "seed": 76489926,
+  "contentType": "image/jpeg",
+  "bytes": 199668,
+  "aspectRatio": null,
+  "resolution": null,
+  "qualityPreset": null,
+  "variationIndex": null,
+  "sourceImages": null,
+  "estimatedPollen": {
+    "known": true,
+    "perImage": 0.005,
+    "total": 0.005
+  },
+  "fallback": {
+    "used": false,
+    "model": "black-forest-labs/flux.2-klein-4b"
+  }
+}

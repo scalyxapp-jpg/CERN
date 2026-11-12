@@ -1,0 +1,34 @@
+{
+  "id": "20261112-150347-z8mya",
+  "tool": "generate_image",
+  "kind": "generated",
+  "created": "2026-11-12T15:03:47.986Z",
+  "prompt": {
+    "original": "Seamless dark gunmetal brushed metal surface texture, anthracite near-black, very fine horizontal brushing grain, subtle micro scratches, matte anodised aluminium, even lighting, flat top-down orthographic view, tileable, high detail, no text, no logos, no objects",
+    "used": "Seamless dark gunmetal brushed metal surface texture, anthracite near-black, very fine horizontal brushing grain, subtle micro scratches, matte anodised aluminium, even lighting, flat top-down orthographic view, tileable, high detail, no text, no logos, no objects, highly detailed, sharp focus, professional composition, balanced exposure, rich color depth",
+    "negative": "blurry, out of focus, low resolution, jpeg artifacts, watermark, signature, caption, distorted lettering, deformed, disfigured, bad anatomy, extra limbs, extra fingers, fused fingers, oversaturated, cluttered, low contrast",
+    "style": "none",
+    "qualityBoost": true,
+    "autoEnhanced": false,
+    "exactText": null
+  },
+  "model": "black-forest-labs/flux.2-klein-4b",
+  "size": "1024x1024",
+  "seed": 712752533,
+  "contentType": "image/jpeg",
+  "bytes": 129205,
+  "aspectRatio": null,
+  "resolution": null,
+  "qualityPreset": null,
+  "variationIndex": null,
+  "sourceImages": null,
+  "estimatedPollen": {
+    "known": true,
+    "perImage": 0.005,
+    "total": 0.005
+  },
+  "fallback": {
+    "used": false,
+    "model": "black-forest-labs/flux.2-klein-4b"
+  }
+}

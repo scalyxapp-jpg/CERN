@@ -1,0 +1,34 @@
+{
+  "id": "20261112-150725-blgv0",
+  "tool": "generate_image",
+  "kind": "generated",
+  "created": "2026-11-12T15:07:25.627Z",
+  "prompt": {
+    "original": "Minimal flat vector emblem: one perfect thin white circle ring, inside it a second concentric thinner white ring arc, a solid bright red dot exactly at the centre, a short white vertical line connecting the top of the inner ring to the centre dot. Pure solid black background (#000000), no shadow, no gradient, no glow, no text, no letters, perfectly symmetrical, crisp sharp edges, centered, generous margin",
+    "used": "Minimal flat vector emblem: one perfect thin white circle ring, inside it a second concentric thinner white ring arc, a solid bright red dot exactly at the centre, a short white vertical line connecting the top of the inner ring to the centre dot. Pure solid black background (#000000), no shadow, no gradient, no glow, no text, no letters, perfectly symmetrical, crisp sharp edges, centered, generous margin, vector logo, flat design, centered composition, minimal shapes, crisp clean edges, plain background",
+    "negative": "3d, gradient noise, photographic, cluttered, busy background, low resolution",
+    "style": "logo",
+    "qualityBoost": false,
+    "autoEnhanced": false,
+    "exactText": null
+  },
+  "model": "black-forest-labs/flux.2-klein-4b",
+  "size": "1024x1024",
+  "seed": 2123495767,
+  "contentType": "image/jpeg",
+  "bytes": 28813,
+  "aspectRatio": null,
+  "resolution": null,
+  "qualityPreset": null,
+  "variationIndex": null,
+  "sourceImages": null,
+  "estimatedPollen": {
+    "known": true,
+    "perImage": 0.005,
+    "total": 0.005
+  },
+  "fallback": {
+    "used": false,
+    "model": "black-forest-labs/flux.2-klein-4b"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "20261112-150727-pf0pz",
+  "tool": "generate_image",
+  "kind": "generated",
+  "created": "2026-11-12T15:07:27.586Z",
+  "prompt": {
+    "original": "High-end audio plugin logo wordmark, the exact text C.E.R.N in a clean condensed geometric sans-serif, pure white letters, the dots rendered as small bright red squares, wide letter spacing, perfectly horizontal, sharp vector edges, pure solid black background, no extra text, no tagline, no border, no shadow, centred",
+    "used": "High-end audio plugin logo wordmark, the exact text C.E.R.N in a clean condensed geometric sans-serif, pure white letters, the dots rendered as small bright red squares, wide letter spacing, perfectly horizontal, sharp vector edges, pure solid black background, no extra text, no tagline, no border, no shadow, centred, vector logo, flat design, centered composition, minimal shapes, crisp clean edges, plain background, with clearly legible text reading \"C.E.R.N\" exactly, correct spelling, well-formed typography, high contrast lettering, clean plain area behind the text",
+    "negative": "3d, gradient noise, photographic, cluttered, busy background, low resolution",
+    "style": "logo",
+    "qualityBoost": false,
+    "autoEnhanced": false,
+    "exactText": "C.E.R.N"
+  },
+  "model": "black-forest-labs/flux.2-klein-4b",
+  "size": "1536x512",
+  "seed": 2117948063,
+  "contentType": "image/jpeg",
+  "bytes": 16680,
+  "aspectRatio": null,
+  "resolution": null,
+  "qualityPreset": null,
+  "variationIndex": null,
+  "sourceImages": null,
+  "estimatedPollen": {
+    "known": true,
+    "perImage": 0.005,
+    "total": 0.005
+  },
+  "fallback": {
+    "used": false,
+    "model": "black-forest-labs/flux.2-klein-4b"
+  }
+}
