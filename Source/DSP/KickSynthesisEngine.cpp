@@ -462,11 +462,11 @@ void KickSynthesisEngine::updateSubOscillator (float tunedFundamental, float dec
 void KickSynthesisEngine::updateBodyOscillator (float tunedFundamental, float tuning,
                                                 float decayMs, float attackMs)
 {
-    // +7 Cent Detune gegen die Membran (SND-042) -> kein Phasen-Lock,
-    // leichte Schwebung zwischen Body und Grundton.
+    // +3 Cent Detune gegen die Membran (SND-042) -> kein Phasen-Lock,
+    // sehr leichte Schwebung zwischen Body und Grundton.
     const float bodyFreq = juce::jlimit (15.0f, 2000.0f,
                                          tunedFundamental * juce::jlimit (0.5f, 2.0f, tuning)
-                                           * 1.00405f);
+                                           * 1.00173f);
     const float bodyFreqClamped = juce::jlimit (1.0f, 0.45f * (float) sampleRate, bodyFreq);
 
     bodyOmega = juce::MathConstants<float>::twoPi * bodyFreqClamped / (float) sampleRate;

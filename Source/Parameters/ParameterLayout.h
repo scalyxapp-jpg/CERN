@@ -9,43 +9,43 @@ struct DefaultValues
 {
     // Membrane
     static constexpr float membraneTension      = 0.5f;
-    static constexpr float membraneRadius       = 0.15f;
+    static constexpr float membraneRadius       = 0.22f;
     static constexpr float membraneMass         = 1.0f;
-    static constexpr float membraneDamping      = 0.30f;
-    static constexpr float membraneModes        = 5.0f;
-    static constexpr float fundamentalHz        = 60.0f;
-    static constexpr float membraneNonlinearity = 0.15f;
-    static constexpr float membraneStiffness    = 0.15f;
+    static constexpr float membraneDamping      = 0.45f;
+    static constexpr float membraneModes        = 4.0f;
+    static constexpr float fundamentalHz        = 46.25f; // TV/Small-Speaker: 46 Hz sinnvoll
+    static constexpr float membraneNonlinearity = 0.10f;
+    static constexpr float membraneStiffness    = 0.10f;
 
     // Tube / Hollow
-    static constexpr float tubeResonanceFreq    = 120.0f; // Ratio 2.0 bei 60 Hz
-    static constexpr float tubeResonanceQ       = 8.0f;
-    static constexpr float tubeResonanceLevel   = 0.4f;
-    static constexpr float tubeCoupling         = 0.5f;
-    static constexpr float hollowMetallic       = 0.3f;
+    static constexpr float tubeResonanceFreq    = 85.0f; // ~1.8x bei 46 Hz
+    static constexpr float tubeResonanceQ       = 4.0f;
+    static constexpr float tubeResonanceLevel   = 0.22f;
+    static constexpr float tubeCoupling         = 0.30f;
+    static constexpr float hollowMetallic       = 0.08f;
 
     // Pitch Envelope
     static constexpr float pitchEnvAttack       = 0.2f;
     static constexpr float pitchEnvDecay        = 60.0f;
-    static constexpr float pitchEnvDepth        = 0.8f;
+    static constexpr float pitchEnvDepth        = 0.50f;
     static constexpr float pitchEnvCurve        = 0.0f;
 
     // Click / Beater
-    static constexpr float clickLevel           = 0.8f;
+    static constexpr float clickLevel           = 0.38f;
     static constexpr float clickDecay           = 4.0f;
-    static constexpr float clickTone            = 0.35f;
+    static constexpr float clickTone            = 0.22f;
     static constexpr float clickDistortion      = 0.2f;
     static constexpr int   clickBeaterMaterial  = 1; // Medium
 
     // Body
-    static constexpr float bodyLevel            = 0.65f;
+    static constexpr float bodyLevel            = 0.58f;
     static constexpr float bodyAttack           = 0.8f;
-    static constexpr float bodyDecay            = 450.0f;
+    static constexpr float bodyDecay            = 500.0f;
     static constexpr float bodyTuning           = 1.0f;
 
     // Sub
-    static constexpr float subLevel             = 0.30f;
-    static constexpr float subDecay             = 350.0f;
+    static constexpr float subLevel             = 0.58f;
+    static constexpr float subDecay             = 520.0f;
     static constexpr float subDetune            = 0.0f;
     static constexpr int   subShape             = 0; // Sine
 
@@ -56,23 +56,23 @@ struct DefaultValues
     static constexpr float drivePreHP           = 0.0f;
 
     // EQ
-    static constexpr float eqSubFreq            = 50.0f;
-    static constexpr float eqSubGain            = 2.0f;
-    static constexpr float eqPunchFreq          = 2800.0f;
-    static constexpr float eqPunchGain          = 3.0f;
+    static constexpr float eqSubFreq            = 46.0f;
+    static constexpr float eqSubGain            = 3.0f;
+    static constexpr float eqPunchFreq          = 1200.0f;
+    static constexpr float eqPunchGain          = 1.5f;
     static constexpr float eqAirFreq            = 10000.0f;
     static constexpr float eqAirGain            = 0.0f;
-    static constexpr float eqRumbleHP           = 25.0f;
+    static constexpr float eqRumbleHP           = 20.0f;
 
     // Compressor
-    static constexpr float compThreshold        = -8.0f;
-    static constexpr float compRatio            = 3.0f;
-    static constexpr float compAttack           = 10.0f;
+    static constexpr float compThreshold        = -10.0f;
+    static constexpr float compRatio            = 2.5f;
+    static constexpr float compAttack           = 15.0f;
     static constexpr float compRelease          = 120.0f;
     static constexpr float compKnee             = 6.0f;
     static constexpr float compMakeup           = 0.0f;
     static constexpr float compMix              = 1.0f;
-    static constexpr bool  compAutoMakeup       = true;
+    static constexpr bool  compAutoMakeup       = false;
 
     // Output
     static constexpr float outputGain           = 0.0f;
@@ -100,7 +100,7 @@ struct DefaultValues
     static constexpr float reverbGate           = 0.0f; // 0 = Gate aus (aktiv 10–500 ms)
 
     // Global / Tuning
-    static constexpr float rootNote             = 30.0f; // F#1 (SND-129)
+    static constexpr float rootNote             = 33.0f; // ~46 Hz (A1), SND-129 aktualisiert
     static constexpr float velocitySensitivity  = 0.6f;
     static constexpr float keyRoot              = 0.0f;  // C
     static constexpr int   scale                = 0;     // Chromatic
@@ -119,21 +119,21 @@ struct DefaultValues
     static constexpr bool  sequencerClockOut    = false;
 
     // Higgs
-    static constexpr float higgsEnabled         = 0.0f;
+    static constexpr float higgsEnabled         = 1.0f;
     static constexpr float higgsCursorPhi       = 0.5f;
     static constexpr float higgsCursorTheta     = 180.0f;
-    static constexpr float higgsFieldStrength   = 0.5f;
+    static constexpr float higgsFieldStrength   = 0.75f;
     static constexpr float higgsVev             = 0.7f;
-    static constexpr float higgsSelfCoupling    = 0.5f;
-    static constexpr float higgsInertia         = 0.5f;
-    static constexpr float higgsYukawaBoost     = 0.3f;
-    static constexpr float higgsBosonHz         = 98.0f;
-    static constexpr float higgsBosonQ          = 8.0f;
+    static constexpr float higgsSelfCoupling    = 0.65f;
+    static constexpr float higgsInertia         = 0.45f;
+    static constexpr float higgsYukawaBoost     = 0.60f;
+    static constexpr float higgsBosonHz         = 92.50f;
+    static constexpr float higgsBosonQ          = 10.0f;
     static constexpr float higgsSymmetry        = 0.5f;
-    static constexpr float higgsDecay           = 0.5f;
-    static constexpr float higgsMix             = 0.10f;
-    static constexpr float higgsRate            = 0.5f;
-    static constexpr float higgsDepth           = 0.25f;
+    static constexpr float higgsDecay           = 0.62f;
+    static constexpr float higgsMix             = 0.38f;
+    static constexpr float higgsRate            = 0.65f;
+    static constexpr float higgsDepth           = 0.35f;
 
     // Trigger
     static constexpr float triggerButton        = 0.0f;

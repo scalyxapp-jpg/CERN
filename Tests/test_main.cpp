@@ -883,7 +883,7 @@ TEST (module_enable_defaults)
     checkDefault (ParameterIDs::outputEnabled, true);
     checkDefault (ParameterIDs::roomEnabled, true);
     checkDefault (ParameterIDs::reverbEnabled, true);
-    checkDefault (ParameterIDs::higgsEnabled, false);
+    checkDefault (ParameterIDs::higgsEnabled, true);
 }
 
 //==============================================================================
@@ -3033,6 +3033,7 @@ TEST (factory_presets_loudness_spread)
     for (int preset = 0; preset < 7; ++preset)
     {
         const float lufs = measurePreset (preset);
+        fprintf (stderr, "LD preset %d lufs %.2f\n", preset, lufs);
         CHECK (std::isfinite (lufs));
         CHECK (lufs > -40.0f && lufs < 0.0f);
         minLufs = juce::jmin (minLufs, lufs);

@@ -87,7 +87,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     layout.add (std::make_unique<juce::AudioParameterChoice> (
         ParameterIDs::subRatio, "Sub Ratio",
         juce::StringArray { "0.5", "1.0" },
-        1 /* 1.0 -> Default-Ratio (SND-049) */));
+        1 /* 1.0 -> TV/kleine Speaker; 0.5 ~23 Hz oft unhörbar (TV-Boxen) */));
 
     // ------------------------------------------------------------------
     // 2.7 Drive / Saturation (4)
@@ -234,7 +234,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     // 2.14 Higgs Field (15)
     // ------------------------------------------------------------------
     layout.add (std::make_unique<juce::AudioParameterBool> (
-        ParameterIDs::higgsEnabled, "Higgs Enabled", false, "Higgs Effect"));
+        ParameterIDs::higgsEnabled, "Higgs Enabled", true, "Higgs Effect"));
     layout.add (addFloat (ParameterIDs::higgsCursorPhi,       "Higgs Cursor Phi",      { 0.0f, 1.0f, 0.001f }, DefaultValues::higgsCursorPhi));
     layout.add (addFloat (ParameterIDs::higgsCursorTheta,     "Higgs Cursor Theta",    { 0.0f, 360.0f, 0.1f }, DefaultValues::higgsCursorTheta));
     layout.add (addFloat (ParameterIDs::higgsFieldStrength,   "Higgs Field Strength",  { 0.0f, 1.0f, 0.01f }, DefaultValues::higgsFieldStrength));

@@ -122,20 +122,37 @@ public:
                           * std::cos (thetaState * (float) juce::MathConstants<float>::pi / 180.0f);
         const float deviation = field - params.vev;
 
-        // SND-124: Abweichung auf -1..+1 normieren, Präsenz auf ±3 dB begrenzen.
+        // SND-124: Abweichung auf -1..+1 normieren. ±14 dB Gain-Swing bei
+        // vollem Yukawa – das war der klanglich entscheidende Hebel.
         const float posRange = juce::jmax (1.0e-3f, 1.0f - params.vev);
         const float negRange = juce::jmax (1.0e-3f, 1.0f + params.vev);
         const float devNorm = juce::jlimit (-1.0f, 1.0f,
                                             deviation >= 0.0f ? deviation / posRange
                                                               : deviation / negRange);
 
-        const float yukawa = std::pow (10.0f, params.yukawaBoost * 3.0f * devNorm / 20.0f);
+        const float yukawa = std::pow (10.0f, params.yukawaBoost * 14.0f * devNorm / 20.0f);
+
+        // Ungerade Harmonische: tanh-Drive skaliert mit Yukawa-Boost; die
+        // zusätzlichen Obertöne tragen den Feld-Charakter klar hörbar in das
+        // Signal (vorher: nur Pegel/Resonator, kaum "Dichte" am Hörer).
+        const float drive = juce::jlimit (0.0f, 1.0f,
+                                          params.yukawaBoost * (0.35f + 0.65f * std::abs (devNorm)));
+        const auto saturate = [drive] (float x) noexcept
+        {
+            const float k = 1.0f + 6.0f * drive;
+            const float driveNorm = std::tanh (k * 0.5f) / (k * 0.5f);
+            const float denom = driveNorm * (k + drive * std::abs (x));
+            return std::tanh (x * (k + drive * std::abs (x))) / (denom == 0.0f ? 1.0f : denom);
+        };
 
         float outL = l * yukawa;
         float outR = r * yukawa;
+        outL = saturate (outL);
+        outR = saturate (outR);
 
-        // Einfacher Resonator-Effekt (moduliert Gain leicht)
-        const float resp = 1.0f + devNorm * params.fieldStrength * 0.15f;
+        // Resonator: Feldstärke treibt den Modulator tiefer/stärker
+        // (bis ±9 dB bei voller Feldstärke), nicht mehr nur ±1.5 dB.
+        const float resp = 1.0f + devNorm * params.fieldStrength * 0.85f;
         outL *= resp;
         outR *= resp;
 
@@ -155,7 +172,7 @@ public:
 
         // Decay dämpft den Resonator (höherer Decay = kürzeres Nachklingen).
         const float decayDamp = 1.0f - 0.5f * juce::jlimit (0.0f, 1.0f, params.decay);
-        const float bosonAmount = params.selfCoupling * 0.5f * decayDamp;
+        const float bosonAmount = params.selfCoupling * 0.85f * decayDamp;
         outL += bosonAmount * yL;
         outR += bosonAmount * yR;
 

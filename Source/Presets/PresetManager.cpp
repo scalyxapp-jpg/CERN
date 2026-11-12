@@ -126,7 +126,7 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::compThreshold,       -8.0f },
             { ParameterIDs::compRatio,            3.0f },
             { ParameterIDs::compMakeup,           0.0f },
-            { ParameterIDs::outputGain,          -1.5f },
+            { ParameterIDs::outputGain,           0.3f },
             { ParameterIDs::outputClip,           0.05f },
             { ParameterIDs::roomLevel,            0.18f },
             { ParameterIDs::reverbMaterial,       4.0f },
@@ -135,7 +135,7 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::higgsMix,            0.12f }
         } },
         { "Hard Acid Kick", {
-            { ParameterIDs::fundamentalHz,        55.0f },
+            { ParameterIDs::fundamentalHz,       46.25f },
             { ParameterIDs::membraneTension,      0.7f },
             { ParameterIDs::membraneDamping,      0.35f },
             { ParameterIDs::membraneModes,        4.0f },
@@ -154,14 +154,14 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::eqPunchGain,          3.0f },
             { ParameterIDs::compThreshold,       -8.0f },
             { ParameterIDs::compRatio,            3.0f },
-            { ParameterIDs::outputGain,           4.5f },
+            { ParameterIDs::outputGain,           1.5f },
             { ParameterIDs::outputClip,           0.05f },
             { ParameterIDs::roomLevel,            0.15f },
             { ParameterIDs::reverbMix,           0.08f },
             { ParameterIDs::higgsEnabled,         0.0f }
         } },
         { "808 Boomy", {
-            { ParameterIDs::fundamentalHz,       41.20f },
+            { ParameterIDs::fundamentalHz,       46.25f },
             { ParameterIDs::membraneTension,      0.25f },
             { ParameterIDs::membraneDamping,      0.14f },
             { ParameterIDs::membraneModes,        3.0f },
@@ -178,7 +178,7 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::compThreshold,      -10.0f },
             { ParameterIDs::compRatio,            3.0f },
             { ParameterIDs::compMakeup,           0.0f },
-            { ParameterIDs::outputGain,          -1.7f },
+            { ParameterIDs::outputGain,          -3.0f },
             { ParameterIDs::outputClip,           0.05f },
             { ParameterIDs::roomLevel,            0.30f },
             { ParameterIDs::roomRumble,           0.30f },
@@ -187,7 +187,7 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::higgsEnabled,         0.0f }
         } },
         { "Tight Techno", {
-            { ParameterIDs::fundamentalHz,       49.00f },
+            { ParameterIDs::fundamentalHz,       46.25f },
             { ParameterIDs::membraneDamping,      0.32f },
             { ParameterIDs::pitchEnvDepth,        0.75f },
             { ParameterIDs::pitchEnvDecay,        50.0f },
@@ -199,7 +199,7 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::compRatio,            3.0f },
             { ParameterIDs::compAttack,           8.0f },
             { ParameterIDs::compRelease,        110.0f },
-            { ParameterIDs::outputGain,          -0.1f },
+            { ParameterIDs::outputGain,           0.8f },
             { ParameterIDs::outputClip,           0.05f },
             { ParameterIDs::roomLevel,           0.12f },
             { ParameterIDs::reverbMaterial,       0.0f },
@@ -210,7 +210,7 @@ void PresetManager::initFactoryPresets()
 
     // Drei zusätzliche C.E.R.N-Presets mit Parameter-CV-Modulation und Higgs-Feld.
     presets.push_back ({ "CV Pulse Kick", {
-        { ParameterIDs::fundamentalHz,       51.91f },
+        { ParameterIDs::fundamentalHz,       46.25f },
         { ParameterIDs::membraneTension,      0.30f },
         { ParameterIDs::pitchEnvDepth,        0.85f },
         { ParameterIDs::pitchEnvDecay,        55.0f },
@@ -227,7 +227,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compThreshold,       -8.0f },
         { ParameterIDs::compRatio,            3.0f },
         { ParameterIDs::compMakeup,           0.0f },
-        { ParameterIDs::outputGain,          -3.3f },
+        { ParameterIDs::outputGain,          -2.5f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::roomLevel,            0.12f },
         { ParameterIDs::reverbMix,           0.08f },
@@ -237,7 +237,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::higgsSelfCoupling,    0.40f },
         { ParameterIDs::higgsInertia,         0.40f },
         { ParameterIDs::higgsYukawaBoost,     0.50f },
-        { ParameterIDs::higgsBosonHz,       103.80f },
+        { ParameterIDs::higgsBosonHz,        92.50f },
         { ParameterIDs::higgsBosonQ,          8.0f },
         { ParameterIDs::higgsSymmetry,        0.30f },
         { ParameterIDs::higgsDecay,           0.60f },
@@ -267,7 +267,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compThreshold,      -10.0f },
         { ParameterIDs::compRatio,            3.0f },
         { ParameterIDs::compMakeup,           0.0f },
-        { ParameterIDs::outputGain,          -3.9f },
+        { ParameterIDs::outputGain,          -3.5f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::roomLevel,            0.30f },
         { ParameterIDs::roomRumble,           0.30f },
@@ -294,7 +294,7 @@ void PresetManager::initFactoryPresets()
     } });
 
     presets.push_back ({ "Parameter Patch Kick", {
-        { ParameterIDs::fundamentalHz,       58.27f },
+        { ParameterIDs::fundamentalHz,       46.25f },
         { ParameterIDs::membraneTension,      0.40f },
         { ParameterIDs::pitchEnvDepth,        0.70f },
         { ParameterIDs::pitchEnvDecay,        60.0f },
@@ -314,7 +314,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compRatio,            3.0f },
         { ParameterIDs::compAttack,           8.0f },
         { ParameterIDs::compRelease,        110.0f },
-        { ParameterIDs::outputGain,           1.0f },
+        { ParameterIDs::outputGain,          -2.5f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::roomLevel,            0.12f },
         { ParameterIDs::roomDecay,          250.0f },
@@ -326,7 +326,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::higgsSelfCoupling,    0.45f },
         { ParameterIDs::higgsInertia,         0.40f },
         { ParameterIDs::higgsYukawaBoost,     0.35f },
-        { ParameterIDs::higgsBosonHz,       116.50f },
+        { ParameterIDs::higgsBosonHz,        92.50f },
         { ParameterIDs::higgsBosonQ,          8.0f },
         { ParameterIDs::higgsSymmetry,        0.45f },
         { ParameterIDs::higgsDecay,           0.45f },
@@ -372,7 +372,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::driveMix,             0.40f },
         { ParameterIDs::driveCharacter,       0.0f }, // Tube
         { ParameterIDs::drivePreHP,           0.10f },
-        { ParameterIDs::eqSubFreq,            45.0f },
+        { ParameterIDs::eqSubFreq,            46.0f },
         { ParameterIDs::eqSubGain,            3.0f },
         { ParameterIDs::eqPunchFreq,       2200.0f },
         { ParameterIDs::eqPunchGain,          1.5f },
@@ -437,7 +437,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::driveMix,             0.40f },
         { ParameterIDs::driveCharacter,       0.0f }, // Tube
         { ParameterIDs::drivePreHP,           0.10f },
-        { ParameterIDs::eqSubFreq,            45.0f },
+        { ParameterIDs::eqSubFreq,            46.0f },
         { ParameterIDs::eqSubGain,            4.0f },
         { ParameterIDs::eqPunchFreq,       2200.0f },
         { ParameterIDs::eqPunchGain,          0.5f },
@@ -451,7 +451,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compAutoMakeup,       0.0f },
         { ParameterIDs::transientAttack,      2.0f },
         { ParameterIDs::transientSustain,     0.0f },
-        { ParameterIDs::outputGain,          -2.0f },
+        { ParameterIDs::outputGain,          -2.3f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::outputLimiter,        0.15f },
         { ParameterIDs::roomLevel,            0.10f },
@@ -475,7 +475,7 @@ void PresetManager::initFactoryPresets()
     // ausgewogener Sub/Low mit präsenter Mid/Click-Energie (2–8 kHz ~20 %),
     // schnelle, teils sehr kurze Körperanteile.
     presets.push_back ({ "Punch-roller", {
-        { ParameterIDs::fundamentalHz,       48.00f },
+        { ParameterIDs::fundamentalHz,       46.25f },
         { ParameterIDs::membraneTension,      0.46f },
         { ParameterIDs::membraneRadius,       0.14f },
         { ParameterIDs::membraneDamping,      0.38f },
@@ -504,7 +504,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::driveMix,             0.42f },
         { ParameterIDs::driveCharacter,       0.0f }, // Tube
         { ParameterIDs::drivePreHP,           0.12f },
-        { ParameterIDs::eqSubFreq,            48.0f },
+        { ParameterIDs::eqSubFreq,            46.0f },
         { ParameterIDs::eqSubGain,            2.0f },
         { ParameterIDs::eqPunchFreq,       3000.0f },
         { ParameterIDs::eqPunchGain,          4.0f },
@@ -535,7 +535,7 @@ void PresetManager::initFactoryPresets()
     // Grundtonbereich ~45–50 Hz, dominant 80–200 Hz (~45 %) + Sub, wenig Click
     // (~7 %), lange Tails, heiß gepegelt.
     presets.push_back ({ "Low-end-roller", {
-        { ParameterIDs::fundamentalHz,       45.00f },
+        { ParameterIDs::fundamentalHz,       46.25f },
         { ParameterIDs::membraneTension,      0.34f },
         { ParameterIDs::membraneRadius,       0.17f },
         { ParameterIDs::membraneDamping,      0.18f },
@@ -554,7 +554,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::bodyAttack,           1.0f },
         { ParameterIDs::bodyDecay,           620.0f },
         { ParameterIDs::bodyTuning,           1.0f },
-        { ParameterIDs::tubeResonanceFreq,   100.0f },
+        { ParameterIDs::tubeResonanceFreq,    85.0f },
         { ParameterIDs::tubeResonanceQ,       9.0f },
         { ParameterIDs::tubeResonanceLevel,   0.52f },
         { ParameterIDs::tubeCoupling,         0.55f },
@@ -567,7 +567,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::driveMix,             0.32f },
         { ParameterIDs::driveCharacter,       0.0f }, // Tube
         { ParameterIDs::drivePreHP,           0.06f },
-        { ParameterIDs::eqSubFreq,            42.0f },
+        { ParameterIDs::eqSubFreq,            46.0f },
         { ParameterIDs::eqSubGain,            3.0f },
         { ParameterIDs::eqPunchFreq,       2200.0f },
         { ParameterIDs::eqPunchGain,          0.0f },
