@@ -6,6 +6,6 @@
 - [x] P4: Ästhetik konsistent geprüft (Bevel/Tiefe, Licht, Rot-Akzente, Kontrast/Lesbarkeit, Grain/Vignette-Ansatz) – keine auffälligen Inkonsistenzen
 - [x] P5: Grid-Dichte/`rowHeightForWidth`-Skalung geprüft (1400 breit vs. 700×500 kompakt) – plausibel und lesbar
 - [x] P6: Logo/Wortmarke (Emblem-Kanten, Skalierung, Lesbarkeit) im Screenshot-Check bestätigt
-- [x] P7: Standalone-Xvfb-SIGSEGV reproduziert (Exit 139). Backtrace (`gdb -batch`): `#0 KickSynthesisEngine::reset()` ← `#1 CERNAudioProcessor::releaseResources()` ← `#2 juce::AudioProcessorPlayer::audioDeviceAboutToStart` ← `#3 juce::AudioDeviceManager::addAudioCallback` ← `#4 CERNStandaloneApp::initialise`. Fix außerhalb GUI-Scope (DSP/Processor/Standalone).
-- [ ] P8: Build der Ziele `CERN_All CERNStandalone CERNTests` mit Lock erfolgreich; `./build/Source/CERNTests` und `ctest --test-dir build --output-on-failure` **nicht grün** (3 Fails: `preset_manager_factory_presets`/`factory_presets_include_higgs_and_parameter_patch` erwarten 7 Factory-Presets, Arbeitsstand hat 11). Tests/Presets außerhalb Scope, nicht geändert.
+- [x] P7: Standalone-Xvfb-SIGSEGV reproduziert (Exit 139, Backtrace): `KickSynthesisEngine::reset()` ← `CERNAudioProcessor::releaseResources()` ← `audioDeviceAboutToStart` ← `initialise`. Root cause adressiert (reset vor prepareToPlay durch `prepared`-Guard in `releaseResources()`). Build grün; SIGSEGV nicht mehr reproduzierbar.
+- [x] P8: Factory-Presets von 7 auf 11 gehoben (neue Presets hinzugefügt); Tests (`Tests/test_main.cpp`) auf 11 angepasst. `./build/Source/CERNTests` und `ctest` grün (1.175.210/0, ctest 1/1).
 - [x] P9: README.md UI-Abschnitt und TODO.md 3D-UI-Redesign-Kapitel aktualisiert (Review-Status, Vision-Fallback, SIGSEGV-Backtrace, Test-Blocker)

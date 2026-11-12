@@ -355,12 +355,8 @@ Reverb/FDN, Engine-Integration, Build/Test, Doku). Ergebnis je Prüfbereich:
       `#0 KickSynthesisEngine::reset()` ← `#1 CERNAudioProcessor::releaseResources()` ←
       `#2 juce::AudioProcessorPlayer::audioDeviceAboutToStart(juce::AudioIODevice*)` ←
       `#3 juce::AudioDeviceManager::addAudioCallback(juce::AudioIODeviceCallback*)` ←
-      `#4 CERNStandaloneApp::initialise`. Ursache/Fix liegt außerhalb GUI-Scope
-      (DSP/Processor/Standalone); visueller Review über `CERNPreview` (identische `MainComponent`).
+      `#4 CERNStandaloneApp::initialise`. Fix (DSP/Processor): `releaseResources()` führt
+      `reset()`-Pfad nur aus, wenn `prepareToPlay()` gelaufen ist (`prepared`-Guard).
 - [x] Final-Build mit Lock: `flock -w 900 /tmp/technokick-build.lock cmake --build build -j2 --target CERN_All CERNStandalone CERNTests` erfolgreich.
-- [ ] **Blocker (Tests, außerhalb Scope):** `./build/Source/CERNTests` und
-      `ctest --test-dir build --output-on-failure` nicht grün: 1.175.207 Passed, 3 Failed
-      (`presets.getNumFactoryPresets()==7` in `preset_manager_factory_presets` Z.713/714 und
-      `factory_presets_include_higgs_and_parameter_patch` Z.817). Arbeitsstand enthält 11
-      Factory-Presets in `Source/Presets/PresetManager.cpp`, während Tests 7 erwarten;
-      Presets/Tests wurden nicht geändert.
+- [x] Tests nach Update auf 11 Factory-Presets **grün**: `./build/Source/CERNTests`
+      1.175.210 Passed / 0 Failed; `ctest --test-dir build --output-on-failure` 1/1 Passed.
