@@ -189,11 +189,22 @@ void WaveformDisplay::paint (juce::Graphics& g)
     auto area = bounds.reduced (10.0f, 8.0f);
     area.removeFromTop (20.0f);
 
-    // Titel
-    g.setColour (CERNLookAndFeel::textColour.withAlpha (0.85f));
-    g.setFont (CERNLookAndFeel::getNameFont());
-    g.drawText ("WAVEFORM", bounds.reduced (10.0f, 6.0f).removeFromTop (16.0f),
-                juce::Justification::topLeft, false);
+    // Titel – nur wenn die Checkbox rechts nicht hineinragt (schmale Fenster).
+    {
+        const auto titleArea = bounds.reduced (10.0f, 6.0f).removeFromTop (16.0f);
+        const auto titleFont = CERNLookAndFeel::getNameFont();
+
+        juce::GlyphArrangement glyphs;
+        glyphs.addLineOfText (titleFont, "WAVEFORM", 0.0f, 0.0f);
+        const float titleWidth = glyphs.getBoundingBox (0, -1, true).getWidth();
+
+        if (layeringToggle.getX() - 8.0f > titleArea.getX() + titleWidth)
+        {
+            g.setColour (CERNLookAndFeel::textColour.withAlpha (0.85f));
+            g.setFont (titleFont);
+            g.drawText ("WAVEFORM", titleArea, juce::Justification::topLeft, false);
+        }
+    }
 
     // Legende unten (nur wenn Layering aktiv): zeigt die errechneten Werte.
     const bool showLegend = layerInfo.enabled;
