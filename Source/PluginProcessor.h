@@ -122,11 +122,12 @@ public:
     double getTailLengthSeconds() const override { return engine.getTailLengthSeconds(); }
 
     //==============================================================================
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram (int) override {}
-    const juce::String getProgramName (int) override { return {}; }
-    void changeProgramName (int, const juce::String&) override {}
+    /** Host-seitiges Preset-Menue: Init + alle eingebetteten Factory-Presets. */
+    int getNumPrograms() override;
+    int getCurrentProgram() override;
+    void setCurrentProgram (int index) override;
+    const juce::String getProgramName (int index) override;
+    void changeProgramName (int, const juce::String&) override;
 
     //==============================================================================
     void getStateInformation (juce::MemoryBlock& destData) override;
@@ -134,6 +135,12 @@ public:
 
 private:
     //==============================================================================
+    /** Anzahl Host-Programme: Init + Factory-Presets. */
+    int factoryProgramCount() const;
+
+    /** Host-Preset-Menue setzt Factory- bzw. Init-Preset (Index 0 = Init). */
+    void setFactoryProgram (int index);
+
     /** Tail-Laenge aus roomDecay/reverbDecay ableiten (nur bei Aenderung setzen). */
     void updateTailLength();
 
@@ -153,6 +160,7 @@ private:
 
     bool lastTriggerButtonState { false };
     bool prepared { false };
+    int currentProgram { 0 };
     float tailLengthSeconds { 1.5f };
 
     // ---- MIDI-Clock-Ausgang (SND-150) ----

@@ -326,6 +326,59 @@ bool CERNAudioProcessor::hasEditor() const
 }
 
 //==============================================================================
+int CERNAudioProcessor::factoryProgramCount() const
+{
+    return 1 + presetManager.getNumFactoryPresets();
+}
+
+void CERNAudioProcessor::setFactoryProgram (int index)
+{
+    currentProgram = juce::jlimit (0, juce::jmax (0, factoryProgramCount() - 1), index);
+
+    if (currentProgram == 0)
+    {
+        presetManager.loadInit();
+        return;
+    }
+
+    presetManager.loadFactory (currentProgram - 1);
+}
+
+int CERNAudioProcessor::getNumPrograms()
+{
+    return factoryProgramCount();
+}
+
+int CERNAudioProcessor::getCurrentProgram()
+{
+    return juce::jlimit (0, juce::jmax (0, factoryProgramCount() - 1), currentProgram);
+}
+
+void CERNAudioProcessor::setCurrentProgram (int index)
+{
+    setFactoryProgram (index);
+}
+
+const juce::String CERNAudioProcessor::getProgramName (int index)
+{
+    if (index == 0)
+        return "Init";
+
+    const auto names = presetManager.getFactoryPresetNames();
+
+    if (index - 1 < names.size())
+        return names[index - 1];
+
+    return {};
+}
+
+void CERNAudioProcessor::changeProgramName (int, const juce::String&)
+{
+    // Factory-Ausdruck (Init + Factory-Presets) ist bewusst read-only:
+    // Umbenennen wuerde die Host-Programmliste destabilisieren.
+}
+
+//==============================================================================
 void CERNAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = apvts.copyState();
@@ -343,6 +396,7 @@ void CERNAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     if (auto parameterPatchXml = engine.getParameterPatchGraph().createStateXml())
         xml->addChildElement (parameterPatchXml.release());
 
+    xml->setAttribute ("currentProgram", getCurrentProgram());
     copyXmlToBinary (*xml, destData);
 }
 
@@ -353,8 +407,11 @@ void CERNAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
     if (xmlState.get() == nullptr)
         return;
 
-    // Unbekannte Parameter/Child-Elemente bleiben tolerant erhalten; fehlender
-    // <Patch>-Knoten entspricht dem Werks-Patch, fehlender <ParameterPatch> dem leeren CV-Patch.
+    currentProgram = xmlState->hasAttribute ("currentProgram")
+        ? juce::jlimit (0, juce::jmax (0, factoryProgramCount() - 1),
+                        (int) xmlState->getIntAttribute ("currentProgram", 0))
+        : 0;
+
     auto patchStateXml = std::make_unique<juce::XmlElement> (*xmlState);
     xmlState->deleteAllChildElementsWithTagName ("Patch");
     xmlState->deleteAllChildElementsWithTagName ("ParameterPatch");
