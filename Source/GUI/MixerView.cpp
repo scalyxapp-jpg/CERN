@@ -50,14 +50,14 @@ public:
         muteAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
             apvts, ParameterIDs::mixerId (channel, "Mute"), muteButton);
 
-        // Sidechain-Anzeige: Quelle des Ducks (oder leer).
+        // Sidechain-Anzeige: Quelle des Ducks im Ruhezustand, aktuelle
+        // Duck-Tiefe waehrend des Duckings (vom Audio-Thread, atomar).
         const int source = MixerStage::sidechainSource (channel);
-        sidechainLabel.setText (source >= 0
-                                    ? juce::String ("SC ") + MixerStage::channelName (source)
-                                    : juce::String(),
-                                juce::dontSendNotification);
-        sidechainLabel.setText ("SIDE-CHAIN", juce::dontSendNotification);
-    sidechainLabel.setJustificationType (juce::Justification::centred);
+        sidechainSourceText = source >= 0
+                                  ? juce::String ("SC ") + MixerStage::channelName (source)
+                                  : juce::String();
+        sidechainLabel.setText (sidechainSourceText, juce::dontSendNotification);
+        sidechainLabel.setJustificationType (juce::Justification::centred);
         sidechainLabel.setFont (CERNLookAndFeel::getLabelFont());
         sidechainLabel.setColour (juce::Label::textColourId, CERNLookAndFeel::accentBrightColour);
         sidechainLabel.setMinimumHorizontalScale (0.6f);
@@ -131,6 +131,28 @@ public:
         repaint();
     }
 
+    /** Zeigt die aktuelle Duck-Tiefe an (0 dB = Ruhezustand -> Quelle). */
+    void setDuckDb (float value)
+    {
+        if (std::abs (value - duckDb) < 0.05f)
+            return;
+
+        duckDb = value;
+
+        if (sidechainSourceText.isEmpty())
+            return;
+
+        const bool ducking = value < -0.2f;
+        const auto text = ducking
+            ? juce::String (value, 1) + " dB"
+            : sidechainSourceText;
+
+        sidechainLabel.setText (text, juce::dontSendNotification);
+        sidechainLabel.setColour (juce::Label::textColourId,
+                                  ducking ? CERNLookAndFeel::accentColour
+                                          : CERNLookAndFeel::accentBrightColour);
+    }
+
     void refresh()
     {
         for (auto& knob : eqKnobs)
@@ -145,12 +167,14 @@ private:
 
     juce::Label nameLabel;
     juce::Label sidechainLabel;
+    juce::String sidechainSourceText;
     std::vector<std::unique_ptr<ParamKnob>> eqKnobs;
     std::unique_ptr<CERNFader> fader;
     juce::TextButton muteButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> muteAttachment;
 
     float peakDb { -120.0f };
+    float duckDb { 0.0f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChannelStrip)
 };
@@ -168,7 +192,7 @@ MixerView::MixerView (juce::AudioProcessorValueTreeState& apvtsRef,
     }
 
     viewport.setViewedComponent (&stripContainer, false);
-    viewport.setScrollBarsShown (true, false);
+    viewport.setScrollBarsShown (true, true);
     addAndMakeVisible (viewport);
 
     sidechainSlider.setRotaryParameters (juce::MathConstants<float>::pi * 1.25f,
@@ -176,7 +200,7 @@ MixerView::MixerView (juce::AudioProcessorValueTreeState& apvtsRef,
     sidechainSlider.setMouseDragSensitivity (160);
     sidechainSlider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
     sidechainSlider.setTooltip ("Global depth of the automatic sidechain "
-                                "(Comp -> Room/Reverb/Mat-Room, Click -> Sub)");
+                                "(Comp -> Room/Higgs/Reverb/Mat Room)");
     addAndMakeVisible (sidechainSlider);
 
     sidechainLabel.setText ("SIDE-CHAIN", juce::dontSendNotification);
@@ -230,7 +254,10 @@ MixerView::~MixerView()
 void MixerView::timerCallback()
 {
     for (int c = 0; c < (int) strips.size(); ++c)
+    {
         strips[(size_t) c]->setPeakDb (mixer.getPeakDb (c));
+        strips[(size_t) c]->setDuckDb (mixer.getDuckDb (c));
+    }
 }
 
 void MixerView::paint (juce::Graphics& g)
@@ -260,7 +287,8 @@ void MixerView::resized()
     const int visibleW = juce::jmax (1, viewport.getWidth() - viewport.getScrollBarThickness());
     const int stripW = juce::jlimit (96, 132, visibleW / numStrips);
 
-    stripContainer.setSize (stripW * numStrips, juce::jmax (1, viewport.getHeight()));
+    stripContainer.setSize (stripW * numStrips,
+                            juce::jmax (1, viewport.getHeight() - viewport.getScrollBarThickness()));
 
     for (int c = 0; c < numStrips; ++c)
         strips[(size_t) c]->setBounds (c * stripW, 0, stripW, stripContainer.getHeight());

@@ -14,10 +14,10 @@
 /** Mixer-Ansicht: ein Kanalstreifen pro klang-erzeugendem Modul.
 
     Jeder Streifen zeigt den Modulnamen, vier EQ-Regler (LOW / MID-LOW /
-    MID / HIGH), einen Lautstaerke-Fader und einen MUTE-Schalter. Die
-    Sidechain-Beziehungen (Comp -> FX, Click -> Sub) werden als rote
-    Sidechain-Klammer angezeigt, damit die automatischen Ducking-Beziehungen
-    im GUI sichtbar sind.
+    MID / HIGH), einen Lautstaerke-Fader und einen MUTE-Schalter. Bei
+    Sidechain-Zielen (Comp -> Room/Higgs/Reverb/Mat Room) steht im Kopf
+    die Quelle ("SC COMP"); waehrend des Duckings zeigt dieselbe Zeile
+    die aktuelle Tiefe in dB.
 
     Alle Regler schreiben direkt in die APVTS (SliderAttachment /
     ButtonAttachment) - die DSP-Seite liest die Werte pro Block.

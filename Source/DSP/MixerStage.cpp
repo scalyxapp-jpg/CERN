@@ -68,9 +68,8 @@ void MixerStage::prepare (double newSampleRate)
     attackCoeff  = std::exp (-1.0f / (0.001f * (float) sampleRate));
     releaseCoeff = std::exp (-1.0f / (0.090f * (float) sampleRate));
 
-    // Meter-Ballistik: ~20 dB/s Fallback (pro Block naeherungsweise konstant).
-    const float blockSeconds = 512.0f / (float) sampleRate;
-    peakDecayPerBlock = 20.0f * blockSeconds;
+    // Meter-Ballistik: ~20 dB/s Fallback (processMono laeuft pro Sample).
+    peakDecayPerSample = 20.0f / sampleRate;
 
     reset();
 }
@@ -82,7 +81,8 @@ void MixerStage::reset()
         ch.stateL.reset();
         ch.stateR.reset();
         ch.envelope = 0.0f;
-        ch.peakDb = -120.0f;
+        ch.peakDb.store (-120.0f, std::memory_order_relaxed);
+        ch.duckDb.store (0.0f, std::memory_order_relaxed);
     }
 }
 
@@ -122,8 +122,35 @@ void MixerStage::updateParameters (ParameterSmoothing& smoothing)
         const float midDb    = midIdx    >= 0 ? smoothing.get (midIdx)    : 0.0f;
         const float highDb   = highIdx   >= 0 ? smoothing.get (highIdx)   : 0.0f;
 
-        updateBandCoefficients (state.coeffs, sampleRate, lowDb, midLowDb, midDb, highDb);
+        // Koeffizienten nur bei Wert-/Samplerate-Aenderung neu berechnen
+        // (13 Kanaele x 4 Biquads pro Block waeren sonst reine CPU-Last).
+        const std::array<float, 4> bandDb { lowDb, midLowDb, midDb, highDb };
+        bool coeffsChanged = ((double) sampleRate != coeffSampleRate);
+
+        for (size_t i = 0; i < bandDb.size() && ! coeffsChanged; ++i)
+            coeffsChanged = std::abs (bandDb[i] - state.lastBandDb[i]) > 1.0e-3f;
+
+        if (coeffsChanged)
+        {
+            updateBandCoefficients (state.coeffs, sampleRate, lowDb, midLowDb, midDb, highDb);
+            state.lastBandDb = bandDb;
+        }
+
+        // Alle Baender neutral -> Filterpfad komplett umgehen (bit-transparent)
+        // und den Zustand leeren, damit beim Wiedereinschalten nichts anschwingt.
+        const bool bypassed = std::abs (lowDb) < 0.005f && std::abs (midLowDb) < 0.005f
+                           && std::abs (midDb) < 0.005f && std::abs (highDb) < 0.005f;
+
+        if (bypassed && ! state.eqBypassed)
+        {
+            state.stateL.reset();
+            state.stateR.reset();
+        }
+
+        state.eqBypassed = bypassed;
     }
+
+    coeffSampleRate = (double) sampleRate;
 }
 
 //==============================================================================
@@ -204,7 +231,14 @@ float MixerStage::sidechainGain (int channel) const noexcept
         return 1.0f;
 
     const float depthDb = sidechainDepthDb[channel] * sidechainDepth;
-    const float norm = juce::jlimit (0.0f, 1.0f, env / sidechainReferenceLevel);
+
+    if (depthDb <= 0.0f)
+        return 1.0f;
+
+    // Weiche, monotone Normalisierung: env/(env+k). Bei env=k halbe Tiefe,
+    // bei env >> k nahezu volle Tiefe. Anders als env/0.35 (geklemmt) bleibt
+    // die Ducking-Tiefe proportional zur Quell-Lautstaerke.
+    const float norm = env / (env + sidechainHalfDepthLevel);
 
     return juce::Decibels::decibelsToGain (-depthDb * norm);
 }
@@ -220,19 +254,29 @@ float MixerStage::processMono (int channel, float x)
     if (state.mute)
     {
         feedEnvelope (channel, 0.0f);
+        state.duckDb.store (0.0f, std::memory_order_relaxed);
         decayPeak (state);
         return 0.0f;
     }
 
-    float y = state.stateL.process (state.coeffs, x);
-    y *= state.gain * sidechainGain (channel);
+    float y = state.eqBypassed ? x : state.stateL.process (state.coeffs, x);
+
+    const float scGain = sidechainGain (channel);
+    y *= state.gain * scGain;
+
+    state.duckDb.store (scGain < 1.0f
+                            ? 20.0f * std::log10 (juce::jmax (1.0e-6f, scGain))
+                            : 0.0f,
+                        std::memory_order_relaxed);
 
     // Huelle erst NACH Fader/Mute bilden, damit ein gemuteter/stummer
     // Quellkanal nicht weiter duckt.
     feedEnvelope (channel, y);
 
     const float peak = std::abs (y);
-    state.peakDb = juce::jmax (peakDbFromLinear (peak), state.peakDb - peakDecayPerBlock);
+    state.peakDb.store (juce::jmax (peakDbFromLinear (peak),
+                                   state.peakDb.load (std::memory_order_relaxed) - peakDecayPerSample),
+                        std::memory_order_relaxed);
 
     return y;
 }
@@ -248,18 +292,14 @@ void MixerStage::feedEnvelope (int channel, float value) noexcept
 
 void MixerStage::decayPeak (ChannelState& state) noexcept
 {
-    state.peakDb = juce::jmax (-120.0f, state.peakDb - peakDecayPerBlock);
+    state.peakDb.store (juce::jmax (-120.0f,
+                                   state.peakDb.load (std::memory_order_relaxed) - peakDecayPerSample),
+                        std::memory_order_relaxed);
 }
 
 float MixerStage::peakDbFromLinear (float linear) noexcept
 {
     return 20.0f * std::log10 (juce::jmax (1.0e-6f, linear));
-}
-
-float MixerStage::getDuckDb (int channel) const noexcept
-{
-    const float g = sidechainGain (juce::jlimit (0, numChannels - 1, channel));
-    return 20.0f * std::log10 (juce::jmax (1.0e-6f, g));
 }
 
 void MixerStage::processStereo (int channel, float& l, float& r)
@@ -272,21 +312,33 @@ void MixerStage::processStereo (int channel, float& l, float& r)
     if (state.mute)
     {
         feedEnvelope (channel, 0.0f);
+        state.duckDb.store (0.0f, std::memory_order_relaxed);
         decayPeak (state);
         l = 0.0f;
         r = 0.0f;
         return;
     }
 
-    l = state.stateL.process (state.coeffs, l);
-    r = state.stateR.process (state.coeffs, r);
+    if (! state.eqBypassed)
+    {
+        l = state.stateL.process (state.coeffs, l);
+        r = state.stateR.process (state.coeffs, r);
+    }
 
-    const float g = state.gain * sidechainGain (channel);
+    const float scGain = sidechainGain (channel);
+    const float g = state.gain * scGain;
     l *= g;
     r *= g;
+
+    state.duckDb.store (scGain < 1.0f
+                            ? 20.0f * std::log10 (juce::jmax (1.0e-6f, scGain))
+                            : 0.0f,
+                        std::memory_order_relaxed);
 
     feedEnvelope (channel, juce::jmax (std::abs (l), std::abs (r)));
 
     const float peak = juce::jmax (std::abs (l), std::abs (r));
-    state.peakDb = juce::jmax (peakDbFromLinear (peak), state.peakDb - peakDecayPerBlock);
+    state.peakDb.store (juce::jmax (peakDbFromLinear (peak),
+                                   state.peakDb.load (std::memory_order_relaxed) - peakDecayPerSample),
+                        std::memory_order_relaxed);
 }

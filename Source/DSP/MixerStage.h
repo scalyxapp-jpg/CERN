@@ -24,8 +24,18 @@
     `mixerSidechainDepth` (0..1) global skalierbar):
 
       - COMP  duckt ROOM / HIGGS / REVERB / MATERIAL ROOM
-        (Kompressor -> Reverb-Nebel: klassisch, haelt den Kick trocken)
-      - CLICK duckt SUB (Beater-Transient pumpt den Sub minimal)
+        (Kick-Bus -> FX-Nebel: klassisch, haelt den Kick trocken).
+        Der Comp-Kanal ist der letzte Kanal VOR den FX und enthaelt bei
+        bypassetem Kompressor das trockene Kick-Signal - das Ducking folgt
+        bewusst dem Kick, nicht der Kompressor-Gain-Reduktion.
+
+    Kein CLICK -> SUB mehr: der Beater-Transient hat den Sub-Grundton
+    moduliert ("Wobbel") und dem Attack Tiefe genommen.
+
+    Das Ducking ist proportional (weiches Kennlinien-Normalisieren):
+    `norm = env / (env + sidechainHalfDepthLevel)` - ein lauterer Kick
+    duckt tiefer, ein leiser Kick nur wenig. Damit ist die Tiefe nicht
+    mehr binaer (env/0.35 geklemmt) und nicht preset-abhaengig.
 
     Die Kanäle werden im Graph-Routing an der Quelle getrennt: Membran und
     Body werden getrennt gemischt (je eigener Kanal), danach wie bisher
@@ -81,11 +91,16 @@ public:
     /** Peak des Kanals in dBFS mit Fallback-Ballistik (fuer die GUI-Meter). */
     float getPeakDb (int channel) const noexcept
     {
-        return channels[(size_t) juce::jlimit (0, numChannels - 1, channel)].peakDb;
+        return channels[(size_t) juce::jlimit (0, numChannels - 1, channel)]
+            .peakDb.load (std::memory_order_relaxed);
     }
 
     /** Aktuelle Sidechain-Daempfung eines Kanals in dB (0 = kein Ducking). */
-    float getDuckDb (int channel) const noexcept;
+    float getDuckDb (int channel) const noexcept
+    {
+        return channels[(size_t) juce::jlimit (0, numChannels - 1, channel)]
+            .duckDb.load (std::memory_order_relaxed);
+    }
 
     /** Sidechain-Quelle eines Kanals (fuer die GUI-Anzeige), -1 = keine. */
     static int sidechainSource (int channel) noexcept;
@@ -164,9 +179,19 @@ private:
         BandState stateL {};
         BandState stateR {};
 
+        /** Zuletzt berechnete Bandwerte (Koeffizienten nur bei Aenderung). */
+        std::array<float, 4> lastBandDb { 0.0f, 0.0f, 0.0f, 0.0f };
+
+        /** Alle Baender bei 0 dB -> Filter komplett umgehen (bit-transparent). */
+        bool eqBypassed { true };
+
         /** Hüllkurve (Peak-Follower) fuer Sidechain-Quellen. */
         float envelope { 0.0f };
-        float peakDb { -120.0f };
+
+        /** GUI-Meter/Duck-Werte: atomar, damit der Message-Thread sie
+            gefahrlos lesen kann (Audio-Thread schreibt). */
+        std::atomic<float> peakDb { -120.0f };
+        std::atomic<float> duckDb { 0.0f };
     };
 
     //==============================================================================
@@ -183,6 +208,7 @@ private:
     static float peakDbFromLinear (float linear) noexcept;
 
     float sampleRate { 48000.0 };
+    double coeffSampleRate { 0.0 };
     float sidechainDepth { 1.0f };
 
     std::array<ChannelState, numChannels> channels {};
@@ -193,7 +219,7 @@ private:
         -1,     // Membrane
         -1,     // Body
         -1,     // Tube
-        (int) Channel::Click, // Sub  <- Click
+        -1,     // Sub  (frueher: Click -> Sub, entfernt: Grundton-Wobbel)
         -1,     // Click
         -1,     // Drive
         -1,     // Eq
@@ -205,28 +231,30 @@ private:
         -1      // Output
     };
 
-    /** Sidechain-Tiefe pro Zielkanal in dB. */
+    /** Maximale Sidechain-Tiefe pro Zielkanal in dB. */
     static constexpr float sidechainDepthDb[numChannels] =
     {
         0.0f, 0.0f, 0.0f,
-        2.0f,   // Sub <- Click
+        0.0f,   // Sub (kein Sidechain-Ziel mehr)
         0.0f, 0.0f, 0.0f, 0.0f,
-        4.0f,   // Room <- Comp
-        3.5f,   // Higgs <- Comp
-        4.0f,   // Reverb <- Comp
-        3.5f,   // MaterialRoom <- Comp
+        5.0f,   // Room <- Comp
+        4.0f,   // Higgs <- Comp
+        5.0f,   // Reverb <- Comp
+        4.5f,   // MaterialRoom <- Comp
         0.0f
     };
 
-    /** Referenzpegel der Sidechain-Huelle (normiert 0..1). */
-    static constexpr float sidechainReferenceLevel = 0.35f;
+    /** Pegel, bei dem ein Ducking-Ziel die halbe Tiefe erreicht.
+        Kleiner Wert = frueher volle Tiefe; 0.10 haelt die Kennlinie
+        proportional, ohne bei leisen Presets zu schwach zu ducken. */
+    static constexpr float sidechainHalfDepthLevel = 0.10f;
 
     /** Envelope-Anpassung: Attack ~1 ms, Release ~90 ms. */
     float attackCoeff { 0.0f };
     float releaseCoeff { 0.0f };
 
-    /** Meter-Fallback in dB pro Block (~20 dB/s). */
-    float peakDecayPerBlock { 0.5f };
+    /** Meter-Fallback in dB pro Sample (~20 dB/s). */
+    float peakDecayPerSample { 0.0004f };
 
     /** Indizes der Mixer-Parameter in der ParameterSmoothing (einmalig ermittelt). */
     std::array<int, numChannels * 6> paramIndices {};
