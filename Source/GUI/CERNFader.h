@@ -14,8 +14,8 @@ class CERNFader : public juce::Component,
                   public juce::SettableTooltipClient
 {
 public:
-    static constexpr int nameHeight  = 15;
-    static constexpr int valueHeight = 14;
+    static constexpr int nameHeight  = 19;
+    static constexpr int valueHeight = 18;
 
     CERNFader (juce::AudioProcessorValueTreeState& apvts,
                const juce::String& parameterId,

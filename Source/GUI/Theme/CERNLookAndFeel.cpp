@@ -100,22 +100,22 @@ CERNLookAndFeel::CERNLookAndFeel()
 //==============================================================================
 juce::Font CERNLookAndFeel::getSectionTitleFont()
 {
-    return juce::Font (juce::FontOptions (15.0f, juce::Font::bold));
+    return juce::Font (juce::FontOptions (16.0f, juce::Font::bold));
 }
 
 juce::Font CERNLookAndFeel::getNameFont()
 {
-    return juce::Font (juce::FontOptions (11.0f));
+    return juce::Font (juce::FontOptions (14.0f, juce::Font::bold));
 }
 
 juce::Font CERNLookAndFeel::getLabelFont()
 {
-    return juce::Font (juce::FontOptions (12.0f));
+    return juce::Font (juce::FontOptions (14.0f));
 }
 
 juce::Font CERNLookAndFeel::getValueFont()
 {
-    return juce::Font (juce::FontOptions (11.0f, juce::Font::bold));
+    return juce::Font (juce::FontOptions (13.0f, juce::Font::bold));
 }
 
 juce::Font CERNLookAndFeel::getDisplayFont()

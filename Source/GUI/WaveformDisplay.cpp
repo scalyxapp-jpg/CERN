@@ -187,10 +187,10 @@ void WaveformDisplay::clear()
 void WaveformDisplay::resized()
 {
     // Checkbox sitzt rechts in der Titelzeile; der MOD-Button links daneben.
-    const int toggleW = juce::jmin (getWidth() - 24, 160);
+    const int toggleW = juce::jmin (getWidth() - 24, 215);
     layeringToggle.setBounds (getWidth() - toggleW - 8, 5, toggleW, 18);
 
-    const bool showModuleToggle = getWidth() >= 215;
+    const bool showModuleToggle = getWidth() >= 285;
     moduleToggle.setVisible (showModuleToggle);
 
     if (showModuleToggle)

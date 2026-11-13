@@ -79,7 +79,7 @@ void PowerSwitch::drawState (juce::Graphics& g)
     // Text
     g.setColour (on ? CERNLookAndFeel::textColour
                     : CERNLookAndFeel::textColour.withAlpha (0.55f));
-    g.setFont (juce::Font (juce::FontOptions (10.0f, juce::Font::bold)));
+    g.setFont (juce::Font (juce::FontOptions (12.0f, juce::Font::bold)));
     g.drawText (on ? "ON" : "OFF",
                 bounds.withLeft (led.getRight() + 4.0f),
                 juce::Justification::centred);
