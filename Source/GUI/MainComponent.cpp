@@ -295,6 +295,16 @@ bool MainComponent::keyPressed (const juce::KeyPress& key)
         return true;
     }
 
+    // Ableton reserviert Space fuer den Transport und leitet es NICHT an
+    // Plugins weiter. 'P' schaltet die Sequencer-Wiedergabe ueberall um.
+    const juce::juce_wchar playCharacter = key.getTextCharacter();
+
+    if (playCharacter == 'p' || playCharacter == 'P')
+    {
+        if (footer) footer->togglePlayback();
+        return true;
+    }
+
     const juce::juce_wchar character = key.getTextCharacter();
 
     if (character == 't' || character == 'T')
@@ -930,6 +940,19 @@ MainComponent::HeaderBar::HeaderBar (CERNAudioProcessor& p,
     presetSelector.onChange = [this] { presetChanged(); };
     addAndMakeVisible (presetSelector);
 
+    // Prominente Browser-Tasten in der Kopfzeilenmitte: <  ‹Preset›  >
+    presetPrevButton.setTitle ("Vorheriges Preset");
+    presetPrevButton.setDescription ("Vorheriges Preset auswaehlen");
+    presetPrevButton.setTooltip ("Vorheriges Preset (auch: Cursor-Links)");
+    presetPrevButton.onClick = [this] { selectRelativePreset (-1); };
+    addAndMakeVisible (presetPrevButton);
+
+    presetNextButton.setTitle ("Naechstes Preset");
+    presetNextButton.setDescription ("Naechstes Preset auswaehlen");
+    presetNextButton.setTooltip ("Naechstes Preset (auch: Cursor-Rechts)");
+    presetNextButton.onClick = [this] { selectRelativePreset (1); };
+    addAndMakeVisible (presetNextButton);
+
     rebuildPresetList();
     updateABDisplay();
 
@@ -1196,6 +1219,35 @@ void MainComponent::HeaderBar::resized()
     const bool narrow = useTwoRows (getWidth(), morphVisible);
     const int gap = 6;
 
+    // Prominenter Preset-Browser in der Mitte: < ‹Preset› > + Wellenform-Vorschau
+    auto placeBrowser = [&] (int rowYArg, int rowHArg, int leftBound, int rightBound)
+    {
+        const int freeW = juce::jmax (0, rightBound - leftBound);
+
+        int arrowW = 34, comboW = 116, previewW = 46;
+
+        if (freeW < 250) { arrowW = 30; comboW = 92; previewW = 0; }
+        else if (freeW < 300) { arrowW = 32; comboW = 104; previewW = 40; }
+
+        const int previewTotal = previewW > 0 ? previewW + gap : 0;
+        const int total = arrowW + gap + comboW + gap + arrowW + previewTotal;
+        const int x = leftBound + juce::jmax (0, (freeW - total) / 2);
+
+        presetPrevButton.setBounds (x, rowYArg, arrowW, rowHArg);
+        presetSelector.setBounds (x + arrowW + gap, rowYArg, comboW, rowHArg);
+        presetNextButton.setBounds (x + arrowW + gap + comboW + gap, rowYArg, arrowW, rowHArg);
+
+        if (previewW > 0)
+        {
+            presetPreview.setVisible (true);
+            presetPreview.setBounds (x + total - previewW, rowYArg, previewW, rowHArg);
+        }
+        else
+        {
+            presetPreview.setVisible (false);
+        }
+    };
+
     if (narrow)
     {
         // Zwei Reihen: bei 700 px Breite bleibt jedes Control vollstaendig
@@ -1207,12 +1259,8 @@ void MainComponent::HeaderBar::resized()
 
         logo.setBounds (margin, 4, LogoComponent::preferredWidthForHeight (logoH), logoH);
 
-        // Reihe 1 rechts: Preset + Datei-Aktionen. Combo 112 px: bei 100
-        // wurde "NO PRESET" mit Ellipse abgeschnitten (700er-Befund).
-        int x = getWidth() - margin - 112;
-        presetSelector.setBounds (x, row1Y, 112, rowH);
-
-        x -= 38 + gap;
+        // Reihe 1: Logo links | Preset-Browser mitte | Datei-Aktionen rechts
+        int x = getWidth() - margin - 38;
         deleteButton.setBounds (x, row1Y, 38, rowH);
 
         x -= 44 + gap;
@@ -1221,9 +1269,7 @@ void MainComponent::HeaderBar::resized()
         x -= 44 + gap;
         saveButton.setBounds (x, row1Y, 44, rowH);
 
-        x -= 44 + gap;
-        presetPreview.setVisible (true);
-        presetPreview.setBounds (x, row1Y, 44, rowH);
+        placeBrowser (row1Y, rowH, logo.getRight() + 8, x - gap);
 
         // Reihe 2: Signalweg links, Performance rechts.
         int leftX = margin;
@@ -1304,7 +1350,6 @@ void MainComponent::HeaderBar::resized()
     // + RND (SND-184), RENDER (SND-183), MORPH (SND-185, nur bei zwei Slots).
     // Bei sichtbarem Morph weicht die Preset-Beschriftung dem Regler.
     // Combo 112 px: genug Platz fuer "NO PRESET *" und Dropdown-Pfeil ohne Clipping.
-    const int presetW = 112;
     const int buttonW = 52;
     const int smallW  = 42;
     const int iconW   = 46;
@@ -1312,8 +1357,9 @@ void MainComponent::HeaderBar::resized()
     const int morphW  = 84;
     const int morphLabelW = 34;
 
-    int x = getWidth() - margin - presetW;
-    presetSelector.setBounds (x, rowY, presetW, rowH);
+    // Rechte Seite: Datei-Aktionen + Render/Randomize/A-B/Morph
+    int x = getWidth() - margin - buttonW;
+    loadButton.setBounds (x, rowY, buttonW, rowH);
 
     x -= buttonW + gap;
     loadButton.setBounds (x, rowY, buttonW, rowH);
@@ -1343,20 +1389,15 @@ void MainComponent::HeaderBar::resized()
 
         x -= morphLabelW + gap;
         morphLabel.setBounds (x, rowY, morphLabelW, rowH);
-
-        presetPreview.setVisible (false);
     }
     else
     {
         morphSlider.setBounds (0, 0, 0, 0);
         morphLabel.setBounds (0, 0, 0, 0);
-
-        if (! presetPreview.isVisible())
-            presetPreview.setVisible (true);
-
-        x -= 40 + gap;
-        presetPreview.setBounds (x, rowY, 40, rowH);
     }
+
+    // x ist jetzt die linke Kante des rechten Clusters -> Browser in die Mitte.
+    placeBrowser (rowY, rowH, leftX, x - gap);
 }
 
 void MainComponent::HeaderBar::triggerClicked()

@@ -206,7 +206,7 @@ public:
         mittleren Breiten sonst die Preset-Combo abschneiden wuerde. */
     static bool useTwoRows (int width, bool morphVisible)
     {
-        return width < 980 || (morphVisible && width < 1160);
+        return width < 1250 || (morphVisible && width < 1300);
     }
 
     /** Anzahl aktiver Kabel (Patch + Parameter-Patch) fuer die Front-LED. */
@@ -282,6 +282,8 @@ private:
     juce::AudioDeviceManager* audioDeviceManager;
 
     LogoComponent logo;
+    juce::TextButton presetPrevButton { "‹" }; // U+2039 (chevron left)
+    juce::TextButton presetNextButton { "›" }; // U+203A (chevron right)
     PresetPreview presetPreview;
     PresetThumbnailCache* thumbnailCache { nullptr };
     int thumbnailIndex { -1 };
