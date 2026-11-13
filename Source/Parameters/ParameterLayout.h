@@ -179,6 +179,8 @@ struct DefaultValues
 
     // Feature-Findings (SND-068/174)
     static constexpr float clickNoiseMix        = 0.5f;
+    static constexpr float tubeStageDrive       = 0.35f;
+    static constexpr bool  tubeStageEnabled     = true;
     static constexpr bool  tubeTrack             = true;
     static constexpr float duckDepth             = 0.0f;  // dB
     static constexpr float duckRelease           = 80.0f; // ms
@@ -187,7 +189,7 @@ struct DefaultValues
 //==============================================================================
 /** Anzahl der Parameter im Layout: 1199 Basis-Parameter + 12 Module-Enables
     + 15 Material Room / Sub Grumble + 3 Feature-Findings = 1229. */
-inline constexpr int numLayoutParameters = 543;  // 1311 - 768 (Sequencer-Slots 64->16) + 78 Mixer + 1 Sidechain + 2 Layering + 1 Click-Noise
+inline constexpr int numLayoutParameters = 545;  // 543 + 2 (Röhren-Stufe)
 
 /** Erstellt das APVTS-Parameter-Layout mit allen 1229 Parametern. */
 juce::AudioProcessorValueTreeState::ParameterLayout createLayout();

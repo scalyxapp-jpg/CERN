@@ -1225,7 +1225,8 @@ inline float hermiteInterp (float p1, float p2,
 
 //==============================================================================
 void KickSynthesisEngine::processOutputStage (float& l, float& r, float gainDb,
-                                              float panL, float panR)
+                                              float panL, float panR,
+                                              bool tubeStageOn, float tubeStageDrive)
 {
     // -1 dBFS-Kalibrierung (SND-009): 0 dB outputGain endet bei ~-1 dBFS Peak.
     static constexpr float calibrationGain = 0.8912509f; // -1 dB
@@ -1306,6 +1307,23 @@ void KickSynthesisEngine::processOutputStage (float& l, float& r, float gainDb,
 
         clipMinGain = juce::jmin (clipMinGain,
                                   juce::jmin (gainRatio (inL), gainRatio (inR)));
+    }
+
+    // ---- Röhren-Stufe (Bias-Shift-Sättigung, gerade Harmonische) ----
+    // ECHTE Röhren-Sättigung: asymmetrische Kennlinie -> überwiegend h2,
+    // klein signal Gain exakt 1.0 (kein Pegelanstieg trotz Bypass-Farbe).
+    if (tubeStageOn)
+    {
+        const float k = 1.0f + 4.0f * juce::jlimit (0.0f, 1.0f, tubeStageDrive);
+        const float bias = 0.35f;
+        const float tanhBias = std::tanh (k * bias);
+        const float norm = k * (1.0f - tanhBias * tanhBias); // = sech^2(k*bias), gain -> 1
+
+        l = (std::tanh (k * (l + bias)) - tanhBias) / norm;
+        r = (std::tanh (k * (r + bias)) - tanhBias) / norm;
+
+        if (! std::isfinite (l)) l = 0.0f;
+        if (! std::isfinite (r)) r = 0.0f;
     }
 
     // ---- B7: True-Peak-Detektor (4x interpoliert, stereo-linked) ----
@@ -1778,6 +1796,7 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
         LayeringStage::Params lp;
         lp.enabled         = layeringOn;
         lp.amountPct       = smoothing.getById (ParameterIDs::layeringAmount);
+        lp.tubeStageOn     = smoothing.getUnsmoothedById (ParameterIDs::tubeStageEnabled) > 0.5f;
         lp.fundamentalHz   = baseFundamentalHz;
         lp.subLevel        = subLevel;
         lp.subDecayMs      = subDecay;
@@ -2366,7 +2385,9 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                     // und dort auf die FX-Ausgaenge angewendet - der trockene Kick
                     // bleibt unberuehrt (kein Self-Ducking mehr).
 
-                    processOutputStage (outL, outR, outGainCurrent, outPanLCurrent, outPanRCurrent);
+                    processOutputStage (outL, outR, outGainCurrent, outPanLCurrent, outPanRCurrent,
+                                        smoothing.getUnsmoothedById (ParameterIDs::tubeStageEnabled) > 0.5f,
+                                        smoothing.getById (ParameterIDs::tubeStageDrive));
 
                     if (! std::isfinite (outL)) outL = 0.0f;
                     if (! std::isfinite (outR)) outR = 0.0f;

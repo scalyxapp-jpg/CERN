@@ -153,7 +153,7 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::compThreshold,       -8.0f },
             { ParameterIDs::compRatio,            3.0f },
             { ParameterIDs::compMakeup,           0.0f },
-            { ParameterIDs::outputGain, 2.13f },
+            { ParameterIDs::outputGain, 1.32f },
             { ParameterIDs::outputClip,           0.05f },
             { ParameterIDs::roomLevel,            0.18f },
             { ParameterIDs::reverbMaterial,       4.0f },
@@ -182,13 +182,14 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::eqPunchGain,          3.0f },
             { ParameterIDs::compThreshold,       -8.0f },
             { ParameterIDs::compRatio,            3.0f },
-            { ParameterIDs::outputGain, 4.29f },
+            { ParameterIDs::outputGain, 3.55f },
             { ParameterIDs::outputClip,           0.05f },
             { ParameterIDs::roomLevel,            0.15f },
             { ParameterIDs::reverbMix,           0.08f },
             { ParameterIDs::higgsEnabled,         0.0f }
         } },
         { "808 Boomy", {
+        { ParameterIDs::subShape, 1.0f },
             { ParameterIDs::bodyTuning, 2.0f },
             { ParameterIDs::fundamentalHz,       46.25f },
             { ParameterIDs::membraneTension,      0.25f },
@@ -207,7 +208,7 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::compThreshold,      -10.0f },
             { ParameterIDs::compRatio,            3.0f },
             { ParameterIDs::compMakeup,           0.0f },
-            { ParameterIDs::outputGain, 0.91f },
+            { ParameterIDs::outputGain, 0.04f },
             { ParameterIDs::outputClip,           0.05f },
             { ParameterIDs::roomLevel,            0.30f },
             { ParameterIDs::roomRumble,           0.30f },
@@ -230,7 +231,7 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::compRatio,            3.0f },
             { ParameterIDs::compAttack,           8.0f },
             { ParameterIDs::compRelease,        110.0f },
-            { ParameterIDs::outputGain, 2.08f },
+            { ParameterIDs::outputGain, 1.39f },
             { ParameterIDs::outputClip,           0.05f },
             { ParameterIDs::roomLevel,           0.12f },
             { ParameterIDs::reverbMaterial,       0.0f },
@@ -241,6 +242,7 @@ void PresetManager::initFactoryPresets()
 
     // Drei zusätzliche C.E.R.N-Presets mit Parameter-CV-Modulation und Higgs-Feld.
     presets.push_back ({ "CV Pulse Kick", {
+        { ParameterIDs::subShape, 2.0f },
         { ParameterIDs::bodyTuning, 2.0f },
         { ParameterIDs::fundamentalHz,       46.25f },
         { ParameterIDs::membraneTension,      0.30f },
@@ -259,7 +261,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compThreshold,       -8.0f },
         { ParameterIDs::compRatio,            3.0f },
         { ParameterIDs::compMakeup,           0.0f },
-        { ParameterIDs::outputGain, 1.16f },
+        { ParameterIDs::outputGain, 0.43f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::roomLevel,            0.12f },
         { ParameterIDs::reverbMix,           0.08f },
@@ -282,6 +284,7 @@ void PresetManager::initFactoryPresets()
     } });
 
     presets.push_back ({ "Higgs Mod Kick", {
+        { ParameterIDs::subShape, 1.0f },
         { ParameterIDs::fundamentalHz,       46.25f },
         { ParameterIDs::membraneTension,      0.65f },
         { ParameterIDs::membraneDamping,      0.24f },
@@ -300,7 +303,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compThreshold,      -10.0f },
         { ParameterIDs::compRatio,            3.0f },
         { ParameterIDs::compMakeup,           0.0f },
-        { ParameterIDs::outputGain, 2.3f },
+        { ParameterIDs::outputGain, 1.43f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::roomLevel,            0.30f },
         { ParameterIDs::roomRumble,           0.30f },
@@ -328,6 +331,7 @@ void PresetManager::initFactoryPresets()
     } });
 
     presets.push_back ({ "Parameter Patch Kick", {
+        { ParameterIDs::subShape, 2.0f },
         { ParameterIDs::fundamentalHz,       46.25f },
         { ParameterIDs::membraneTension,      0.40f },
         { ParameterIDs::pitchEnvDepth, 1.45f },
@@ -348,7 +352,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compRatio,            3.0f },
         { ParameterIDs::compAttack,           8.0f },
         { ParameterIDs::compRelease,        110.0f },
-        { ParameterIDs::outputGain, 1.77f },
+        { ParameterIDs::outputGain, 1.29f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::roomLevel,            0.12f },
         { ParameterIDs::roomDecay,          250.0f },
@@ -420,7 +424,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compAutoMakeup,       0.0f },
         { ParameterIDs::transientAttack,      2.0f },
         { ParameterIDs::transientSustain,     0.0f },
-        { ParameterIDs::outputGain, 3.87f },
+        { ParameterIDs::outputGain, 2.62f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::outputLimiter,        0.15f },
         { ParameterIDs::roomLevel,            0.10f },
@@ -442,6 +446,7 @@ void PresetManager::initFactoryPresets()
     // Variante „Darker Sub Roller“ (Review): mehr Gewicht/Tiefe, weniger Click,
     // trockener/straffer – auf Basis des optimierten Underground-Techno-Presets.
     presets.push_back ({ "Darker Sub Roller", {
+        { ParameterIDs::tubeStageDrive, 0.45f },
         { ParameterIDs::fundamentalHz,       46.25f },
         { ParameterIDs::membraneTension,      0.38f },
         { ParameterIDs::membraneRadius,       0.16f },
@@ -466,7 +471,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::subLevel,             0.68f },
         { ParameterIDs::subDecay,            980.0f },
         { ParameterIDs::subDetune,            0.0f },
-        { ParameterIDs::subShape,             0.0f },
+        { ParameterIDs::subShape,             1.0f },
         { ParameterIDs::driveAmount,          0.28f },
         { ParameterIDs::driveMix,             0.40f },
         { ParameterIDs::driveCharacter,       0.0f }, // Tube
@@ -485,7 +490,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compAutoMakeup,       0.0f },
         { ParameterIDs::transientAttack,      2.0f },
         { ParameterIDs::transientSustain,     0.0f },
-        { ParameterIDs::outputGain, 3.89f },
+        { ParameterIDs::outputGain, 3.22f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::outputLimiter,        0.15f },
         { ParameterIDs::roomLevel,            0.10f },
@@ -522,7 +527,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::clickLevel,           0.45f },
         { ParameterIDs::clickDecay,           3.8f },
         { ParameterIDs::clickTone,            0.50f },
-        { ParameterIDs::clickDistortion,      0.22f },
+        { ParameterIDs::clickDistortion,      0.25f },
         { ParameterIDs::clickBeaterMaterial,  2.0f }, // Hard
         { ParameterIDs::bodyLevel, 0.42f },
         { ParameterIDs::bodyAttack,           0.4f },
@@ -533,7 +538,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::subLevel,             0.34f },
         { ParameterIDs::subDecay,            300.0f },
         { ParameterIDs::subDetune,            0.0f },
-        { ParameterIDs::subShape,             0.0f },
+        { ParameterIDs::subShape,             1.0f },
         { ParameterIDs::driveAmount,          0.34f },
         { ParameterIDs::driveMix,             0.42f },
         { ParameterIDs::driveCharacter,       0.0f }, // Tube
@@ -552,7 +557,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compAutoMakeup,       0.0f },
         { ParameterIDs::transientAttack,      3.0f },
         { ParameterIDs::transientSustain,     0.0f },
-        { ParameterIDs::outputGain, 4.7f },
+        { ParameterIDs::outputGain, 4.11f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::outputLimiter,        0.15f },
         { ParameterIDs::roomLevel,            0.08f },
@@ -569,6 +574,7 @@ void PresetManager::initFactoryPresets()
     // Grundtonbereich ~45–50 Hz, dominant 80–200 Hz (~45 %) + Sub, wenig Click
     // (~7 %), lange Tails, heiß gepegelt.
     presets.push_back ({ "Low-end-roller", {
+        { ParameterIDs::tubeStageDrive, 0.55f },
         { ParameterIDs::fundamentalHz,       46.25f },
         { ParameterIDs::membraneTension,      0.34f },
         { ParameterIDs::membraneRadius,       0.17f },
@@ -596,7 +602,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::subLevel,             0.50f },
         { ParameterIDs::subDecay,            980.0f },
         { ParameterIDs::subDetune,            0.0f },
-        { ParameterIDs::subShape,             0.0f },
+        { ParameterIDs::subShape,             2.0f },
         { ParameterIDs::driveAmount,          0.28f },
         { ParameterIDs::driveMix,             0.32f },
         { ParameterIDs::driveCharacter,       0.0f }, // Tube
@@ -615,7 +621,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compAutoMakeup,       0.0f },
         { ParameterIDs::transientAttack,      1.0f },
         { ParameterIDs::transientSustain,     0.0f },
-        { ParameterIDs::outputGain, 1.57f },
+        { ParameterIDs::outputGain, -2.04f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::outputLimiter,        0.22f },
         { ParameterIDs::roomLevel,            0.14f },
@@ -659,7 +665,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::driveMix,             0.25f },
         { ParameterIDs::compThreshold,       -8.0f },
         { ParameterIDs::compRatio,            2.5f },
-        { ParameterIDs::outputGain, 4.73f },
+        { ParameterIDs::outputGain, 4.2f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::roomLevel,            0.06f },
         { ParameterIDs::reverbMix,            0.04f }
@@ -667,6 +673,8 @@ void PresetManager::initFactoryPresets()
 
     // Dub-Chord-Kick: langer Body (Shell-Band), Tube-Charakter, Reverb-Anteil.
     presets.push_back ({ "Dub Chord Kick", {
+        { ParameterIDs::tubeStageDrive, 0.4f },
+        { ParameterIDs::subShape, 1.0f },
         { ParameterIDs::fundamentalHz,       46.25f },
         { ParameterIDs::membraneTension,      0.35f },
         { ParameterIDs::membraneDamping,      0.28f },
@@ -689,7 +697,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::driveMix,             0.35f },
         { ParameterIDs::compThreshold,      -10.0f },
         { ParameterIDs::compRatio,            2.0f },
-        { ParameterIDs::outputGain, 0.26f },
+        { ParameterIDs::outputGain, -0.81f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::roomLevel,            0.20f },
         { ParameterIDs::roomDecay,          1200.0f },
@@ -700,6 +708,8 @@ void PresetManager::initFactoryPresets()
 
     // Hard Techno: Wave-Fold-Saettigung, Pre-HP, trockener Raum.
     presets.push_back ({ "Hard Techno Distorted", {
+        { ParameterIDs::tubeStageDrive, 0.55f },
+        { ParameterIDs::subShape, 1.0f },
         { ParameterIDs::fundamentalHz,       46.25f },
         { ParameterIDs::membraneTension,      0.45f },
         { ParameterIDs::membraneDamping,      0.30f },
@@ -724,13 +734,14 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::eqPunchGain,          2.0f },
         { ParameterIDs::compThreshold,      -10.0f },
         { ParameterIDs::compRatio,            3.0f },
-        { ParameterIDs::outputGain, 6.56f },
+        { ParameterIDs::outputGain, 5.47f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::roomLevel,            0.10f }
     } });
 
     // Minimal: nur Click + Sub, kein Tube, kein Room, sehr trocken.
     presets.push_back ({ "Minimal Click Kick", {
+        { ParameterIDs::tubeStageEnabled, 0.0f },
         { ParameterIDs::fundamentalHz,       46.25f },
         { ParameterIDs::membraneTension,      0.42f },
         { ParameterIDs::membraneDamping,      0.40f },
@@ -754,7 +765,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compThreshold,       -6.0f },
         { ParameterIDs::compRatio,            2.0f },
         { ParameterIDs::compAttack,           3.0f },
-        { ParameterIDs::outputGain, 7.88f },
+        { ParameterIDs::outputGain, 7.69f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::roomLevel,            0.04f },
         { ParameterIDs::reverbMix,            0.00f },
@@ -788,11 +799,144 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::eqSubGain,            4.0f },
         { ParameterIDs::compThreshold,      -12.0f },
         { ParameterIDs::compRatio,            3.0f },
-        { ParameterIDs::outputGain, 10.61f },
+        { ParameterIDs::outputGain, 10.51f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::roomLevel,            0.05f },
         { ParameterIDs::materialRoomEnabled,  0.0f },
         { ParameterIDs::higgsEnabled,         0.0f }
+    } });
+
+    // ---- Sound-Engineer-Review 2026-11-13: mehr Klangfarben/Variation ----
+    presets.push_back ({ "Cosmic Dub Tek", {
+        { ParameterIDs::fundamentalHz,       46.25f },
+        { ParameterIDs::membraneTension,      0.35f },
+        { ParameterIDs::membraneDamping,      0.30f },
+        { ParameterIDs::membraneModes,        4.0f },
+        { ParameterIDs::membraneNonlinearity, 0.35f },
+        { ParameterIDs::pitchEnvAttack,       0.2f },
+        { ParameterIDs::pitchEnvDecay,        90.0f },
+        { ParameterIDs::pitchEnvDepth,        1.10f },
+        { ParameterIDs::clickLevel,           0.32f },
+        { ParameterIDs::clickDecay,           4.5f },
+        { ParameterIDs::clickTone,            0.40f },
+        { ParameterIDs::clickBeaterMaterial,  1.0f },
+        { ParameterIDs::bodyLevel,            0.50f },
+        { ParameterIDs::bodyTuning,           2.00f },
+        { ParameterIDs::bodyDecay,           660.0f },
+        { ParameterIDs::subLevel,             0.52f },
+        { ParameterIDs::subDecay,            720.0f },
+        { ParameterIDs::subShape,             1.0f },
+        { ParameterIDs::driveAmount,          0.18f },
+        { ParameterIDs::driveMix,             0.30f },
+        { ParameterIDs::driveCharacter,       0.0f },
+        { ParameterIDs::eqSubGain,            3.0f },
+        { ParameterIDs::compThreshold,      -12.0f },
+        { ParameterIDs::compRatio,            2.2f },
+        { ParameterIDs::outputGain, 2.95f },
+        { ParameterIDs::outputClip,           0.05f },
+        { ParameterIDs::roomLevel,            0.22f },
+        { ParameterIDs::roomDecay,          1400.0f },
+        { ParameterIDs::reverbMaterial,       3.0f },
+        { ParameterIDs::reverbMix,            0.12f },
+        { ParameterIDs::tubeStageDrive,       0.18f }
+    } });
+
+    presets.push_back ({ "Industrial Hammer", {
+        { ParameterIDs::fundamentalHz,       46.25f },
+        { ParameterIDs::membraneTension,      0.55f },
+        { ParameterIDs::membraneDamping,      0.30f },
+        { ParameterIDs::pitchEnvAttack,       0.1f },
+        { ParameterIDs::pitchEnvDecay,        30.0f },
+        { ParameterIDs::pitchEnvDepth,        1.65f },
+        { ParameterIDs::clickLevel,           0.42f },
+        { ParameterIDs::clickDecay,           2.5f },
+        { ParameterIDs::clickTone,            0.68f },
+        { ParameterIDs::clickDistortion,      0.35f },
+        { ParameterIDs::clickBeaterMaterial,  2.0f },
+        { ParameterIDs::bodyLevel,            0.38f },
+        { ParameterIDs::bodyTuning,           2.00f },
+        { ParameterIDs::bodyDecay,           240.0f },
+        { ParameterIDs::subLevel,             0.55f },
+        { ParameterIDs::subDecay,            520.0f },
+        { ParameterIDs::subShape,             2.0f },
+        { ParameterIDs::driveAmount,          0.62f },
+        { ParameterIDs::driveMix,             0.58f },
+        { ParameterIDs::driveCharacter,       2.0f },
+        { ParameterIDs::eqPunchGain,          2.0f },
+        { ParameterIDs::eqPunchFreq,       2600.0f },
+        { ParameterIDs::compThreshold,       -9.0f },
+        { ParameterIDs::compRatio,            3.0f },
+        { ParameterIDs::outputGain, 3.99f },
+        { ParameterIDs::outputClip,           0.10f },
+        { ParameterIDs::roomLevel,            0.12f },
+        { ParameterIDs::tubeStageDrive,       0.50f }
+    } });
+
+    presets.push_back ({ "Berlin Minimal", {
+        { ParameterIDs::fundamentalHz,       46.25f },
+        { ParameterIDs::membraneTension,      0.42f },
+        { ParameterIDs::membraneDamping,      0.40f },
+        { ParameterIDs::membraneModes,        3.0f },
+        { ParameterIDs::pitchEnvAttack,       0.1f },
+        { ParameterIDs::pitchEnvDecay,        38.0f },
+        { ParameterIDs::pitchEnvDepth,        1.35f },
+        { ParameterIDs::clickLevel,           0.48f },
+        { ParameterIDs::clickDecay,           2.5f },
+        { ParameterIDs::clickTone,            0.55f },
+        { ParameterIDs::clickBeaterMaterial,  2.0f },
+        { ParameterIDs::bodyLevel,            0.30f },
+        { ParameterIDs::bodyTuning,           3.00f },
+        { ParameterIDs::bodyDecay,           180.0f },
+        { ParameterIDs::subLevel,             0.34f },
+        { ParameterIDs::subDecay,            260.0f },
+        { ParameterIDs::subShape,             0.0f },
+        { ParameterIDs::driveAmount,          0.10f },
+        { ParameterIDs::driveMix,             0.25f },
+        { ParameterIDs::driveCharacter,       1.0f },
+        { ParameterIDs::eqSubGain,            1.5f },
+        { ParameterIDs::eqPunchGain,          1.2f },
+        { ParameterIDs::compThreshold,       -8.0f },
+        { ParameterIDs::compRatio,            2.5f },
+        { ParameterIDs::outputGain, 7.78f },
+        { ParameterIDs::outputClip,           0.05f },
+        { ParameterIDs::roomLevel,            0.04f },
+        { ParameterIDs::reverbMix,            0.00f },
+        { ParameterIDs::tubeStageEnabled,     0.0f }
+    } });
+
+    presets.push_back ({ "Cosmic Detroit", {
+        { ParameterIDs::fundamentalHz,       46.25f },
+        { ParameterIDs::membraneTension,      0.50f },
+        { ParameterIDs::membraneDamping,      0.20f },
+        { ParameterIDs::membraneModes,        6.0f },
+        { ParameterIDs::membraneNonlinearity, 0.45f },
+        { ParameterIDs::pitchEnvAttack,       0.2f },
+        { ParameterIDs::pitchEnvDecay,        60.0f },
+        { ParameterIDs::pitchEnvDepth,        1.75f },
+        { ParameterIDs::clickLevel,           0.38f },
+        { ParameterIDs::clickDecay,           3.0f },
+        { ParameterIDs::clickTone,            0.50f },
+        { ParameterIDs::clickBeaterMaterial,  1.0f },
+        { ParameterIDs::bodyLevel,            0.44f },
+        { ParameterIDs::bodyTuning,           2.00f },
+        { ParameterIDs::bodyDecay,           380.0f },
+        { ParameterIDs::subLevel,             0.48f },
+        { ParameterIDs::subDecay,            850.0f },
+        { ParameterIDs::subShape,             1.0f },
+        { ParameterIDs::driveAmount,          0.28f },
+        { ParameterIDs::driveMix,             0.38f },
+        { ParameterIDs::driveCharacter,       0.0f },
+        { ParameterIDs::eqSubGain,            2.0f },
+        { ParameterIDs::eqPunchGain,          1.5f },
+        { ParameterIDs::compThreshold,      -10.0f },
+        { ParameterIDs::compRatio,            2.5f },
+        { ParameterIDs::outputGain, 2.78f },
+        { ParameterIDs::outputClip,           0.05f },
+        { ParameterIDs::roomLevel,            0.16f },
+        { ParameterIDs::roomDecay,          1100.0f },
+        { ParameterIDs::reverbMaterial,       4.0f },
+        { ParameterIDs::reverbMix,            0.10f },
+        { ParameterIDs::tubeStageDrive,       0.30f }
     } });
 
     // Standard-Audio-Patch einmal anwenden, damit alle Factory-Presets

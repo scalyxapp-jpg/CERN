@@ -383,8 +383,18 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     layout.add (addFloat (ParameterIDs::clickNoiseMix, "Click Noise Mix",
                           { 0.0f, 1.0f, 0.01f }, DefaultValues::clickNoiseMix));
 
+    // ------------------------------------------------------------------
+    // 2.25 Röhren-Stufe am Ausgang (2): Bias-Shift-Sättigung, bypassbar.
+    // Reihenfolge identisch zu ParameterIDs::getAllIDs() (dort am Ende).
+    // ------------------------------------------------------------------
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        ParameterIDs::tubeStageEnabled, "Tube Stage", DefaultValues::tubeStageEnabled,
+        "Output tube saturation (bypassable)"));
+    layout.add (addFloat (ParameterIDs::tubeStageDrive, "Tube Drive",
+                          { 0.0f, 1.0f, 0.01f }, DefaultValues::tubeStageDrive));
+
     // 1199 Basis-Parameter + 12 Module-Enables + 15 Material Room + 3 Feature
-    // + 78 Mixer + 1 Sidechain + 2 Layering + 1 Click-Noise = 1311 (siehe numLayoutParameters).
+    // + 545 gesamt (siehe numLayoutParameters).
     jassert (getLayoutParameterCount() == numLayoutParameters);
 
     return layout;

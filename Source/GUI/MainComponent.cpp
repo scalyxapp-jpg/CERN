@@ -99,6 +99,7 @@ MainComponent::MainComponent (CERNAudioProcessor& processorRef,
         ParameterIDs::compKnee,             ParameterIDs::compMakeup,
         ParameterIDs::compMix,              ParameterIDs::compAutoMakeup
     }, { ParameterIDs::compEnabled });
+    addSection ("Röhren-Stufe", { ParameterIDs::tubeStageDrive }, { ParameterIDs::tubeStageEnabled });
     addSection ("Output", {
         ParameterIDs::outputGain,           ParameterIDs::outputPan,
         ParameterIDs::outputWidth,          ParameterIDs::outputMonoBelow,

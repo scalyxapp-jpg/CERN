@@ -301,6 +301,8 @@ static constexpr auto* mixerSidechainDepth = "mixerSidechainDepth"; // 0–1, gl
 static constexpr auto* layeringEnabled = "layeringEnabled"; // bool
 static constexpr auto* layeringAmount  = "layeringAmount";  // 0–200 %, skaliert beide Layer
 static constexpr auto* clickNoiseMix   = "clickNoiseMix";   // 0–1, Rausch-/Tick-Anteil im Click
+static constexpr auto* tubeStageEnabled = "tubeStageEnabled"; // bool, Röhren-Stufe am Ausgang (bypassbar)
+static constexpr auto* tubeStageDrive   = "tubeStageDrive";   // 0–1, Bias-Shift-Sättigung
 
 /** Reihenfolge der Mixer-Parameter je Kanal (Gain, Low, MidLow, Mid, High, Mute). */
 inline constexpr std::array<const char*, 6> mixerParamOrder { "Gain", "Low", "MidLow", "Mid", "High", "Mute" };
@@ -492,6 +494,8 @@ inline const std::vector<juce::String>& getAllIDs()
         v.push_back (layeringEnabled);
         v.push_back (layeringAmount);
         v.push_back (clickNoiseMix);
+        v.push_back (tubeStageEnabled);
+        v.push_back (tubeStageDrive);
         return v;
     }();
     return ids;

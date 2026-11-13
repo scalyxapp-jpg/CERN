@@ -159,6 +159,71 @@ void SectionPanel::createControl (juce::AudioProcessorValueTreeState& apvts,
     controls.push_back (std::move (control));
 }
 
+//==============================================================================
+// Kleines gluehendes Vakuumroehrchen fuer das Röhren-Stufe-Sektionsbadge.
+namespace
+{
+void drawTubeBadge (juce::Graphics& g, juce::Rectangle<float> area, bool on)
+{
+    const float cx = area.getCentreX();
+
+    // Halo bei eingeschaltetem Heizer
+    if (on)
+    {
+        juce::ColourGradient halo (juce::Colour (0xffff7a1a).withAlpha (0.35f),
+                                   cx, area.getCentreY(),
+                                   juce::Colours::transparentBlack,
+                                   cx + area.getHeight(), area.getCentreY(), true);
+        g.setGradientFill (halo);
+        g.fillEllipse (area);
+    }
+
+    // Glas-Kolben
+    juce::Path glass;
+    glass.addRoundedRectangle (area.reduced (2.0f, 1.0f), 4.0f);
+    g.setColour (on ? juce::Colour (0xff2c1a08) : juce::Colour (0xff161a20));
+    g.fillPath (glass);
+    g.setColour (juce::Colour (0xff788898).withAlpha (0.40f));
+    g.strokePath (glass, juce::PathStrokeType (0.8f));
+
+    // Sockel (dunkles Bakelit)
+    auto base = area.reduced (2.0f, 1.0f).removeFromBottom (6.0f);
+    g.setColour (juce::Colour (0xff3a2418));
+    g.fillRoundedRectangle (base, 2.0f);
+
+    // Heizer: Sinus-Zickzack
+    juce::Path heater;
+    const float y = area.getCentreY() - 2.0f;
+    const float amp = 2.6f;
+    const int segments = 24;
+
+    for (int i = 0; i <= segments; ++i)
+    {
+        const float t = (float) i / (float) segments;
+        const float x = area.getX() + 4.0f + (area.getWidth() - 8.0f) * t;
+        const float yy = y + std::sin (t * 2.0f * juce::MathConstants<float>::twoPi) * amp;
+
+        if (i == 0)
+            heater.startNewSubPath (x, yy);
+        else
+            heater.lineTo (x, yy);
+    }
+
+    if (on)
+    {
+        g.setColour (juce::Colour (0xffff4d00).withAlpha (0.90f));
+        g.strokePath (heater, juce::PathStrokeType (1.8f));
+        g.setColour (juce::Colour (0xffffe0b0));
+        g.strokePath (heater, juce::PathStrokeType (0.8f));
+    }
+    else
+    {
+        g.setColour (juce::Colour (0xff59606c));
+        g.strokePath (heater, juce::PathStrokeType (1.0f));
+    }
+}
+} // namespace
+
 void SectionPanel::paint (juce::Graphics& g)
 {
     // Titel separat zeichnen, damit die Enable-Schalter rechts im Titelbereich
@@ -179,15 +244,28 @@ void SectionPanel::paint (juce::Graphics& g)
 
     const juce::Rectangle<int> titleArea (12, 6, juce::jmax (0, titleRight - 12), 20);
 
-    // Rote LED + Titel: Signal-Rot nur als Akzent, Text bleibt Off-White.
-    g.setColour (CERNLookAndFeel::accentColour);
-    g.fillEllipse ((float) titleArea.getX(), (float) titleArea.getY() + 5.0f, 6.0f, 6.0f);
-    g.setColour (CERNLookAndFeel::accentBrightColour.withAlpha (0.35f));
-    g.drawEllipse ((float) titleArea.getX() - 1.5f, (float) titleArea.getY() + 3.5f, 9.0f, 9.0f, 1.0f);
+    // Bei der Röhren-Stufe: gluehendes Vakuumröhrchen-Badge statt der LED.
+    const bool isTube = (title == "Röhren-Stufe");
+
+    if (isTube && ! enableToggles.empty())
+    {
+        const bool tubeOn = enableToggles.front()->getToggleState();
+        drawTubeBadge (g, juce::Rectangle<float> ((float) titleArea.getX(), 1.0f,
+                                                  20.0f, 26.0f), tubeOn);
+    }
+    else
+    {
+        // Rote LED + Titel: Signal-Rot nur als Akzent, Text bleibt Off-White.
+        g.setColour (CERNLookAndFeel::accentColour);
+        g.fillEllipse ((float) titleArea.getX(), (float) titleArea.getY() + 5.0f, 6.0f, 6.0f);
+        g.setColour (CERNLookAndFeel::accentBrightColour.withAlpha (0.35f));
+        g.drawEllipse ((float) titleArea.getX() - 1.5f, (float) titleArea.getY() + 3.5f, 9.0f, 9.0f, 1.0f);
+    }
 
     g.setColour (CERNLookAndFeel::textColour);
     g.setFont (CERNLookAndFeel::getSectionTitleFont());
-    g.drawText (upperTitle, titleArea.withTrimmedLeft (14), juce::Justification::left, true);
+    g.drawText (upperTitle, titleArea.withTrimmedLeft (isTube ? 26 : 14),
+                juce::Justification::left, true);
 }
 
 void SectionPanel::resized()

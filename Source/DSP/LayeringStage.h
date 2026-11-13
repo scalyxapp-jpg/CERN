@@ -37,6 +37,7 @@ public:
     {
         bool  enabled          { false };
         float amountPct        { 100.0f }; ///< 0–200 %, skaliert beide Layer-Pegel
+        bool  tubeStageOn      { true };  ///< Röhren-Stufe an
         float fundamentalHz    { 46.25f };
         float subLevel         { 0.58f };
         float subDecayMs       { 520.0f };

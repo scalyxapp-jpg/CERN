@@ -286,6 +286,7 @@ private:
     juce::TextButton presetNextButton { "›" }; // U+203A (chevron right)
     PresetPreview presetPreview;
     PresetThumbnailCache* thumbnailCache { nullptr };
+
     int thumbnailIndex { -1 };
     juce::TextButton patchButton { "PATCHBAY" };
     juce::TextButton mixerButton { "MIXER" };

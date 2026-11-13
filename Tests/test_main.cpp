@@ -732,8 +732,8 @@ TEST (preset_manager_factory_presets)
     ParameterPatchGraph parameterPatch;
     PresetManager presets (apvts, patch, parameterPatch);
 
-    CHECK (presets.getNumFactoryPresets() == 16);
-    CHECK (presets.getFactoryPresetNames().size() == 16);
+    CHECK (presets.getNumFactoryPresets() == 20);
+    CHECK (presets.getFactoryPresetNames().size() == 20);
 
     for (int i = 0; i < presets.getNumFactoryPresets(); ++i)
     {
@@ -836,7 +836,7 @@ TEST (factory_presets_include_higgs_and_parameter_patch)
     ParameterPatchGraph parameterPatch;
     PresetManager presets (apvts, audioPatch, parameterPatch);
 
-    CHECK (presets.getNumFactoryPresets() == 16);
+    CHECK (presets.getNumFactoryPresets() == 20);
 
     for (int i = 0; i < presets.getNumFactoryPresets(); ++i)
     {
@@ -3258,7 +3258,7 @@ TEST (factory_presets_loudness_spread)
     float minLufs = 1.0e9f;
     float maxLufs = -1.0e9f;
 
-    for (int preset = 0; preset < 16; ++preset)
+    for (int preset = 0; preset < 20; ++preset)
     {
         const float lufs = measurePreset (preset);
         CHECK (std::isfinite (lufs));
@@ -3659,7 +3659,7 @@ TEST (layering_keeps_loudness_across_factory_presets)
         return LoudnessMeter::measureLufs (full, 48000.0);
     };
 
-    for (int preset = 0; preset < 16; ++preset)
+    for (int preset = 0; preset < 20; ++preset)
     {
         const float offLufs = measureRmsDb (preset, false);
         const float onLufs  = measureRmsDb (preset, true);

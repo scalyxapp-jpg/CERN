@@ -163,7 +163,7 @@ void LayeringStage::updateDerived()
     const float sumSq = lowW * lowW + highW * highW + 1.0f * lowW;
     baseTrim = 0.985f / std::sqrt (1.0f + sumSq);
 
-    lowWeight  = lowW  * baseTrim;
+    lowWeight  = lowW  * baseTrim * (params.tubeStageOn ? 0.72f : 1.0f);
     highWeight = highW * baseTrim;
 
     info.lowGainDb  = 20.0f * std::log10 (std::max (1.0e-6f, lowWeight));

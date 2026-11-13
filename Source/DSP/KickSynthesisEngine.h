@@ -486,5 +486,6 @@ private:
     float processDrive (float x, float amount, float mix, int character);
     void updateRoom (float level, float decayMs, float rumbleTone, float bpm);
     StereoMix processRoomRumble (const StereoMix& in);
-    void processOutputStage (float& l, float& r, float gainDb, float panL, float panR);
+    void processOutputStage (float& l, float& r, float gainDb, float panL, float panR,
+                             bool tubeStageOn = true, float tubeStageDrive = 0.35f);
 };
