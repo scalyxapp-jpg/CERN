@@ -22,16 +22,35 @@ esac
 OUT_DIR="$DIST_DIR/$PLATFORM"
 mkdir -p "$OUT_DIR"
 
+# JUCE legt die GUI-App NICHT in einen "Standalone/"-Unterordner (nur Plugin-Formate
+# bekommen einen solchen). Das Artefakt liegt direkt in <config>/ - der exakte
+# Name variiert je nach PRODUCT_NAME. Deshalb: erst den erwarteten Pfad, sonst
+# per find im ganzen CERNStandalone_artefacts-Ordner suchen.
+ARTIFACT_ROOT="$BUILD_DIR/Source/CERNStandalone_artefacts/$CONFIG"
+
+case "$PLATFORM" in
+	macos)   PATTERN="*.app" ;;
+	windows) PATTERN="*.exe" ;;
+	linux)   PATTERN="C.E.R.N Standalone" ;;
+	*)       PATTERN="" ;;
+esac
+
 if [[ "$PLATFORM" == "macos" ]]; then
-	APP_SRC="$BUILD_DIR/Source/CERNStandalone_artefacts/$CONFIG/Standalone/${PLUGIN_NAME}.app"
+	EXPECTED="$ARTIFACT_ROOT/Standalone/${PLUGIN_NAME}.app"
 elif [[ "$PLATFORM" == "windows" ]]; then
-	APP_SRC="$BUILD_DIR/Source/CERNStandalone_artefacts/$CONFIG/Standalone/${PLUGIN_NAME}.exe"
+	EXPECTED="$ARTIFACT_ROOT/Standalone/${PLUGIN_NAME}.exe"
 else
-	APP_SRC="$BUILD_DIR/Source/CERNStandalone_artefacts/$CONFIG/Standalone/${PLUGIN_NAME}"
+	EXPECTED="$ARTIFACT_ROOT/${PLUGIN_NAME}"
 fi
 
-if [[ ! -e "$APP_SRC" ]]; then
-	echo "ERROR: Standalone artefact not found: $APP_SRC" >&2
+if [[ -e "$EXPECTED" ]]; then
+	APP_SRC="$EXPECTED"
+else
+	APP_SRC="$(find "$ARTIFACT_ROOT" -name "$PATTERN" -print -quit 2>/dev/null || true)"
+fi
+
+if [[ -z "$APP_SRC" || ! -e "$APP_SRC" ]]; then
+	echo "ERROR: Standalone artefact not found under: $ARTIFACT_ROOT" >&2
 	echo "Build first, e.g.: cmake --build \"$BUILD_DIR\" --config $CONFIG --target CERNStandalone" >&2
 	exit 1
 fi
