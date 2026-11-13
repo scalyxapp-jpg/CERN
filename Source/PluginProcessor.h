@@ -168,6 +168,9 @@ private:
     int currentProgram { 0 };
     float tailLengthSeconds { 1.5f };
 
+    // B7: Zuletzt an den Host gemeldete Latenz (Oversampling-Pfad).
+    int reportedLatencySamples { 0 };
+
     // ---- MIDI-Clock-Ausgang (SND-150) ----
     double midiClockSamplesUntilTick { 0.0 };
     bool   midiClockWasRunning { false };

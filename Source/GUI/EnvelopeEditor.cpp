@@ -14,28 +14,16 @@ namespace
 EnvelopeEditor::EnvelopeEditor()
 {
     setTitle ("Pitch Envelope");
-    setDescription ("Attack, exponential decay, depth and curve of the pitch envelope");
+    setDescription ("Hold, exponential fall, start pitch and curve of the pitch envelope");
     rebuildInfoText();
-}
-
-float EnvelopeEditor::attackShape (float phase, float curve) noexcept
-{
-    const float u = juce::jlimit (0.0f, 1.0f, phase);
-
-    if (curve < 0.0f)
-        return 1.0f - std::pow (1.0f - u, 1.0f + 2.0f * -curve);
-
-    if (curve > 0.0f)
-        return std::pow (u, 1.0f + 2.0f * curve);
-
-    return u;
 }
 
 void EnvelopeEditor::rebuildInfoText()
 {
-    // Depth 0..2 entspricht 0..+24 Halbtoenen (exp2-Kennlinie der DSP).
-    infoFull = "A " + juce::String (attackMs, 1) + " ms  |  D " + juce::String (decayMs, 0)
-             + " ms  |  DEPTH +" + juce::String (depth * 12.0f, 1) + " st"
+    // Depth 0..3 entspricht 0..+36 Halbtoenen (exp2-Kennlinie der DSP);
+    // der Ton startet auf 2^depth und faellt auf f0.
+    infoFull = "HOLD " + juce::String (attackMs, 1) + " ms  |  D " + juce::String (decayMs, 0)
+             + " ms  |  START +" + juce::String (depth * 12.0f, 1) + " st"
              + "  |  CURVE " + juce::String (curve, 2);
 
     infoMedium = "A " + juce::String (attackMs, 1) + " ms  |  D " + juce::String (decayMs, 0)
@@ -122,12 +110,13 @@ void EnvelopeEditor::paint (juce::Graphics& g)
         const float phase = (float) i / (float) curvePoints;
         const float timeMs = phase * totalMs;
 
+        // Review 2026-11-13 (C1): Der Ton startet auf dem Maximum (2^depth) und
+        // faellt exponentiell auf f0. "Attack" ist die Haltezeit auf dem Maximum.
         float env;
 
         if (timeMs < attackMs)
         {
-            const float attackPhase = attackMs > 0.0001f ? timeMs / attackMs : 1.0f;
-            env = attackShape (attackPhase, curve);
+            env = 1.0f;
         }
         else
         {
@@ -151,9 +140,8 @@ void EnvelopeEditor::paint (juce::Graphics& g)
         prevY = y;
     }
 
-    // Peak-Marker am Ende des Attacks
-    const float peakX = area.getX() + area.getWidth() * juce::jlimit (0.0f, 1.0f,
-                                                                     attackMs / totalMs);
+    // Peak-Marker: der Ton startet auf dem Maximum (links), faellt dann ab.
+    const float peakX = area.getX();
     const float peakY = bottom - area.getHeight() * depthGain;
 
     g.setColour (CERNLookAndFeel::textColour);

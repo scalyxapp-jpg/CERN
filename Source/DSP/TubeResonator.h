@@ -9,7 +9,12 @@
 
     Drei gekoppelte Bandpass-Moden (1x / 2.7x / 5.4x der Resonanzfrequenz,
     -0 / -9 / -15 dB) bilden den Hohlkörper. `hollowMetallic` fügt eine
-    pegelneutrale Sättigung der Modussumme hinzu (metallische Obertöne).
+    pegelneutrale Sättigung der Modussumme hinzu (metallische Obertöne,
+    Kleinsignalverstärkung exakt 1.0).
+
+    Der Ausgang ist pegelneutral zum eigenen Eingang: bei level = 1 und
+    coupling = 1 beträgt die Verstärkung 1.0 (kein x4 mehr) - der Zweig wird
+    parallel zur Membran zu mischen und soll sie nicht übersteuern.
 */
 class TubeResonator
 {
@@ -81,15 +86,22 @@ public:
             out += band * modeGains[(size_t) i];
         }
 
-        // Metallischer Hohlklang: pegelneutrale Sättigung der Modussumme.
+        // Metallischer Hohlklang: Sättigung der Modussumme mit Slope 1
+        // (Kleinsignalverstärkung exakt 1.0, Asymptote 1/k).
         if (hollowMetallic > 0.0f)
         {
             const float k = 1.0f + 2.0f * juce::jlimit (0.0f, 1.0f, hollowMetallic);
-            const float saturated = std::tanh (out * k) / std::tanh (k);
+            const float saturated = std::tanh (out * k) / k;
             out += (saturated - out) * juce::jlimit (0.0f, 1.0f, hollowMetallic);
         }
 
-        return out * levelIn * coupling * 4.0f; // SND-067: x4 Verstärkung
+        // Ausgang = eigener Eingang x levelIn x coupling (Slope 1).
+        // Die drei Bandpässe sind RBJ-Konstant-Peak (jeder Modus 0 dB
+        // Peak-Gain); ihre Gewichte summieren sich zu 1.533 (-0/-9/-15 dB).
+        // tubeNorm = 1 / 1.533 normiert diesen Modus-Summen-Faktor weg, damit
+        // der Zweig bei level = 1, coupling = 1 die Unit-Verstärkung hat
+        // (vorher: x4 - der Zweig war 4-6x lauter als die Membrane).
+        return out * levelIn * coupling * tubeNorm;
     }
 
 private:
@@ -98,6 +110,12 @@ private:
     static constexpr std::array<float, numModes> modeRatios { 1.0f, 2.7f, 5.4f };
     // -0 dB / -9 dB / -15 dB
     static constexpr std::array<float, numModes> modeGains { 1.0f, 0.355f, 0.178f };
+
+    /** Normierung des Modus-Summen-Faktors auf den Einheitspegel:
+        1 / (1.0 + 0.355 + 0.178) = 0.6525. Die internen Modusgewichte
+        bleiben 1.0 / 0.355 / 0.178 (-0/-9/-15 dB); ihre Wirkung ist damit
+        0.652 / 0.232 / 0.116 (Summe = 1.0). */
+    static constexpr float tubeNorm = 1.0f / (1.0f + 0.355f + 0.178f);
 
     struct Coefficients
     {

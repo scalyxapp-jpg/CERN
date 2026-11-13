@@ -12,7 +12,9 @@
     berechnet – es gibt keine eigenen Regler.
 
     Layer 1 "DEPTH":   Sinus-Stuetzung auf dem Grundton (bzw. eine Oktave
-                       darunter, wenn f0 hoch genug ist) mit langem Decay.
+                       darunter, wenn f0 hoch genug ist) mit langem Decay
+                       (subDecay * 0.9 - etwas kuerzer als der Sub-Oszillator,
+                       damit der Layer ihn nicht dupliziert).
                        Traegt Tiefe, Rumble und Subbass bis in den Tail.
     Layer 2 "PRESENCE": bandbegrenztes Rausch-/Ton-Gemisch (Dichte-abhaengig)
                        mit sehr kurzem Decay und wenigen ms Delay. Traegt

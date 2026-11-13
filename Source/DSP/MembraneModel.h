@@ -12,9 +12,11 @@
     fundamentalHz; Tension/Radius/Mass formen das Timbre (Modus-Spreizung,
     Grundton-Gewicht, Dämpfung), nicht mehr die Stimmung.
 
-    Nichtlinearität (von-Kármán) moduliert die Phasengeschwindigkeit proportional
-    zur aktuellen Modus-Amplitude (Pitch-Glide), statt einen festen Frequenz-
-    Offset zu addieren.
+    Nichtlinearität (von-Kármán) moduliert **pro Mode** die Phasengeschwindigkeit
+    proportional zum Quadrat der aktuellen Modus-Amplitude (Frequenzmodulation
+    ∝ Amplitude², wie bei echten Membranen). Die FM wirkt direkt auf die
+    Phasendifferenz (inkrementell), nicht auf eine neu berechnete
+    Oszillatorfrequenz - dadurch entstehen beim Trigger/Reset keine Sprünge.
 */
 class MembraneModel
 {
@@ -66,7 +68,7 @@ public:
         const int numModes = (int) juce::jlimit (1.0f, (float) maxModes, modesCount);
 
         // Timbre-Mapping (SND-031): Radius -> Modus-Spreizung 0.6..1.6,
-        // Masse -> Gewicht des Grundmodus 0.9..0.2 + Dämpfungsfaktor 1.6..0.6,
+        // Masse -> Gewicht des Grundmodus 1.2..0.6 + Dämpfungsfaktor 1.6..0.6,
         // Tension -> Dämpfungsfaktor 1.5..0.7.
         const float radiusNorm  = juce::jlimit (0.0f, 1.0f, (radius - 0.05f) / 0.45f);
         const float massNorm    = juce::jlimit (0.0f, 1.0f, (mass - 0.1f) / 1.9f);
@@ -75,8 +77,10 @@ public:
         const float modeSpread  = 0.6f + 1.0f * radiusNorm;
         const float dampingMul  = (1.6f - 1.0f * massNorm) * (1.5f - 0.8f * tensionNorm);
 
-        // Gewicht des Grundmodus: Masse 0.1 kg -> 0.9, 2.0 kg -> 0.2 (SND-031).
-        const float weight0 = 0.9f - 0.7f * massNorm;
+        // Gewicht des Grundmodus: Masse 0.1 kg -> 1.2, 2.0 kg -> 0.6.
+        // Das Fundamental ist dadurch der dominanteste Modus (bei Masse 2.0 kg
+        // gleichauf mit Mode 1), statt der leiseste (SND-031 / Review H1).
+        const float weight0 = 1.2f - 0.6f * massNorm;
 
         // Gewichtssumme nur bei Parameteränderung neu normieren (blockkonstant).
         if (numModes != cachedModes || std::abs (massNorm - cachedMassNorm) > 1.0e-6f)
@@ -95,6 +99,7 @@ public:
         const float f = juce::jlimit (10.0f, 2000.0f, fundamentalHz);
 
         const float dampingScale = 0.0018f + 0.051f * juce::jlimit (0.0f, 1.0f, damping);
+        const float clampedNonlinearity = juce::jlimit (0.0f, 2.0f, nonlinearity);
 
         float sum = 0.0f;
 
@@ -114,9 +119,19 @@ public:
             const float amplitude = m.amplitude * normalization
                                       * ((i == 0) ? weight0 : 1.0f);
 
-            // Pitch-Glide: Phasengeschwindigkeit steigt mit der Modus-Amplitude
-            // (SND-034) — kein fester Frequenz-Offset mehr.
-            m.phase += omega * (1.0f + nonlinearity * amplitude * 0.5f);
+            // Nichtlinearität pro Mode (von-Kármán): Frequenzmodulation ∝
+            // Amplitude². Die interne Modusamplitude (m.amplitude, ohne
+            // Normalisierung) startet bei velocity * modeWeight, also bei ≈ 1.0
+            // für Mode 0 => bei nonlinearity = 1 genau +2 Halbtöne; die
+            // schwachen Obertonmoden bekommen durch das Quadrat deutlich
+            // weniger (Mode 1: 0.6² => +0.65 Halbtöne).
+            const float ampSquared = m.amplitude * m.amplitude;
+            const float fm = juce::jmin (kMaxFrequencyModulation,
+                                         clampedNonlinearity * kNonlinearityGain * ampSquared);
+
+            // Inkrementell auf die Phase: die FM darf beim Trigger/Reset keine
+            // Frequenzsprünge erzeugen.
+            m.phase += omega * (1.0f + fm);
 
             if (m.phase >= juce::MathConstants<float>::twoPi)
                 m.phase -= juce::MathConstants<float>::twoPi;
@@ -131,29 +146,41 @@ public:
             return 0.0f;
         }
 
-        float out = sum;
+        // Die alte Summen-Sättigung (tanh(out*(1+nonlinearity))) entfällt:
+        // Die Nichtlinearität wirkt jetzt pro Mode auf die Frequenz, nicht mehr
+        // als Kompression der Gesamtsumme.
 
-        if (nonlinearity > 0.0f)
-            out = std::tanh (out * (1.0f + nonlinearity));
-
-        return out;
+        return sum;
     }
 
     bool isActive { false };
 
 private:
-    static constexpr int maxModes = 12;
+    static constexpr int maxModes = 16;
+
+    /** +2 Halbtöne bei nonlinearity = 1 und Modusamplitude 1:
+        2^(2/12) - 1 = 0.12246. */
+    static constexpr float kNonlinearityGain = 0.12246f;
+
+    /** Deckel der Frequenzmodulation (max. +3.9 Halbtöne) - verhindert
+        Aliasing/Instabilität bei sehr lauten Moden. */
+    static constexpr float kMaxFrequencyModulation = 0.25f;
 
     /** Bessel-Nullstellen-Verhältnisse einer kreisförmigen Membran (SND-032). */
+    /** Nullstellen der Bessel-Funktion J1 (eingespannte Kreismembran).
+        Review M9: bis 16 Modi erweitert -> Membraninhalt bis 5,83*f0
+        (bei f0 = 46,25 Hz also bis ~270 Hz, vorher nur 188 Hz). */
     static constexpr std::array<float, maxModes> besselRatios {
         1.0f, 1.593f, 2.135f, 2.295f, 2.653f, 2.917f,
-        3.155f, 3.500f, 3.598f, 3.647f, 3.994f, 4.059f
+        3.155f, 3.500f, 3.598f, 3.647f, 3.994f, 4.059f,
+        4.501f, 5.331f, 5.536f, 5.827f
     };
 
     /** Gewichtete Modus-Amplituden (SND-033). */
     static constexpr std::array<float, maxModes> modeWeights {
         1.0f, 0.6f, 0.35f, 0.25f, 0.2f, 0.16f,
-        0.13f, 0.11f, 0.09f, 0.08f, 0.07f, 0.06f
+        0.13f, 0.11f, 0.09f, 0.08f, 0.07f, 0.06f,
+        0.055f, 0.05f, 0.045f, 0.04f
     };
 
     struct Mode

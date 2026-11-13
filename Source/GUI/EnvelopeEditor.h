@@ -22,7 +22,6 @@ public:
 
 private:
     /** Attack-Kennlinie, identisch zu PitchEnvelope::process(). */
-    static float attackShape (float phase, float curve) noexcept;
 
     void rebuildInfoText();
 

@@ -28,6 +28,15 @@ void SpectrumAnalyzer::setSpectrum (const std::vector<float>& mags)
     repaint();
 }
 
+void SpectrumAnalyzer::setBarFrequencies (const std::vector<float>& frequencies)
+{
+    if (frequencies == barFrequencies)
+        return;
+
+    barFrequencies = frequencies;
+    repaint();
+}
+
 void SpectrumAnalyzer::clear()
 {
     if (magnitudes.empty())
@@ -91,6 +100,31 @@ void SpectrumAnalyzer::paint (juce::Graphics& g)
         return;
 
     const float barWidth = area.getWidth() / (float) numBars;
+
+    // Frequenz-Achsenbeschriftung (50/120/500/2k/10k Hz).
+    if (barFrequencies.size() == magnitudes.size())
+    {
+        const float thresholds[] = { 50.0f, 120.0f, 500.0f, 2000.0f, 10000.0f };
+        const char* labels[] = { "50", "120", "500", "2k", "10k" };
+
+        g.setFont (CERNLookAndFeel::getLabelFont());
+        g.setColour (CERNLookAndFeel::textColour.withAlpha (0.40f));
+
+        for (int t = 0; t < 5; ++t)
+        {
+            for (size_t i = 0; i < barFrequencies.size(); ++i)
+            {
+                if (barFrequencies[i] >= thresholds[t])
+                {
+                    const float x = area.getX() + (float) i * barWidth;
+                    g.drawVerticalLine ((int) x, area.getBottom() - 8.0f, area.getBottom());
+                    g.drawText (labels[t], x - 12.0f, area.getBottom() - 16.0f,
+                                24.0f, 12.0f, juce::Justification::centred, false);
+                    break;
+                }
+            }
+        }
+    }
 
     for (int i = 0; i < numBars; ++i)
     {

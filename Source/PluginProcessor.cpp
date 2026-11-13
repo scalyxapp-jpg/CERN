@@ -67,6 +67,11 @@ void CERNAudioProcessor::releaseResources()
     lastTriggerButtonState = false;
     midiClockSamplesUntilTick = 0.0;
     midiClockWasRunning = false;
+
+    // B7: Latenz zurueckmelden (der Oversampling-Pfad existiert nicht mehr).
+    reportedLatencySamples = 0;
+    setLatencySamples (0);
+
     prepared = false;
 }
 
@@ -237,6 +242,18 @@ void CERNAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
 
     // ---- Engine rendern ----
     engine.render (buffer, numSamples, smoothing);
+
+    // ---- B7: Latenz an den Host melden ----
+    // Der Drive-/Clip-Pfad laeuft mit 2x-Halfband-FIR (SND-179) und bringt
+    // dadurch Latenz mit. Der Host muss das wissen, sonst stimmen die
+    // Sample-Positionen von Plugin und Host nicht mehr ueberein.
+    const int engineLatency = engine.getLatencyInSamples();
+
+    if (engineLatency != reportedLatencySamples)
+    {
+        reportedLatencySamples = engineLatency;
+        setLatencySamples (engineLatency);
+    }
 
     // ---- Display-Buffers aktualisieren (Audio -> GUI, thread-safe via atomics) ----
     // Beide Kanaele messen: bei Hard-Pan liefert der jeweils lautere Kanal den Wert.

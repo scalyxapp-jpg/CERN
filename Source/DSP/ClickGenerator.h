@@ -12,6 +12,9 @@
 
     Das Schläger-Material setzt Tick-Decay und Noise-Anteil
     (Soft 8 ms / 70 %, Medium 4 ms / 50 %, Hard 2 ms / 30 %).
+
+    `clickNoiseMix` (Default 0.5, 0..1) ist über setNoiseMix() vom Engine
+    setzbar; das Material verschiebt den Wert um ±0.2.
 */
 class ClickGenerator
 {
@@ -63,15 +66,30 @@ public:
         isActive = true;
     }
 
-    /** Anteil des Noise-Bursts am Click (0 = nur Tick, 1 = nur Noise). */
+    /** Anteil des Noise-Bursts am Click (0 = nur Tick, 1 = nur Noise).
+        Default 0.5 (Wert im Material verschoben: Soft +0.2 / Medium 0.0 /
+        Hard -0.2). Der Wert ist bewusst als Engine-setzbares Member
+        ausgelegt (setNoiseMix/getNoiseMix), damit ein Nutzerparameter
+        (APVTS) direkt durchgereicht werden kann.
+        REVIEW-TODO (Paket B/C): Die Engine ruft setNoiseMix() aktuell nicht
+        auf - der Parameter muss im Parameter-Layout ergaenzt und hier
+        verdrahtet werden. */
     void setNoiseMix (float mix) { clickNoiseMix = juce::jlimit (0.0f, 1.0f, mix); }
     float getNoiseMix() const { return clickNoiseMix; }
 
     /** tone: 0..1 (Base-Tick 1.2..6.5 kHz, SND-060).
         pitchRatio: nativer Pitch-Faktor des Ticks (SND-134); der Engine
-        übergibt den 30-%-getrackten Step-Pitch (trackGlideRatio). 1 = aus. */
+        übergibt den 30-%-getrackten Step-Pitch (trackGlideRatio). 1 = aus.
+        pitchEnvRatio: Momentanverhältnis der Pitch-Envelope (Sweep-Form:
+        1.0 = Tonfall-Maximum, 1.0 am Ende = Zielton; 1.0 = kein Sweep).
+        Der Tick folgt dem Sweep mit 30 % (SND-134-Semistik R^0.3), damit der
+        Click bei einem Pitch-Sweep mitzieht (Strohhalm-Effekt).
+        REVIEW-TODO (Paket B): Die Engine muss pitchEnvRatio übergeben
+        (z. B. aus pitchEnv.getEnvelopeValue()); ohne Übergabe bleibt der Tick
+        unmoduliert (Default 1.0 = Verhalten wie bisher). */
     float process (float level, float decayMs, float tone, float distortion,
-                   int beaterMaterial, float pitchRatio = 1.0f)
+                   int beaterMaterial, float pitchRatio = 1.0f,
+                   float pitchEnvRatio = 1.0f)
     {
         if (! isActive)
             return 0.0f;
@@ -102,7 +120,13 @@ public:
         // pitchRatio gestuft (SND-134, kein Tone-Remapping mehr).
         const float baseTickFreq = 1200.0f + 5300.0f * juce::jlimit (0.0f, 1.0f, tone);
         const float pitch = juce::jlimit (0.1f, 12.0f, std::isfinite (pitchRatio) ? pitchRatio : 1.0f);
-        const float tickFreq = juce::jlimit (20.0f, 18000.0f, baseTickFreq * pitch);
+
+        // Tick folgt dem Pitch-Sweep der Envelope mit 30 % (R^0.3) - der Click
+        // zieht beim Tonfall mit (Strohhalm-Effekt).
+        const float envRatio = juce::jlimit (0.1f, 12.0f, std::isfinite (pitchEnvRatio) ? pitchEnvRatio : 1.0f);
+        const float tickPitch = pitch * std::pow (envRatio, 0.3f);
+
+        const float tickFreq = juce::jlimit (20.0f, 18000.0f, baseTickFreq * tickPitch);
         const float tickOmega = juce::MathConstants<float>::twoPi * tickFreq / (float) sampleRate;
         tickPhase += tickOmega;
 

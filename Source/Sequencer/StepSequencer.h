@@ -49,7 +49,7 @@ public:
     static constexpr auto* stepPrefixLength      = "stepLength_";      // 0.25..4 Steps
 
     //==========================================================================
-    static constexpr int maxSteps       = 64;  // SND-145
+    static constexpr int maxSteps       = 16;  // SND-145 (M14: 64 -> 16, GUI zeigt 16 Steps)
     static constexpr int numPatterns    = 4;   // SND-146 (A-D)
     static constexpr int maxChainLength = 8;   // SND-146
     /** Parameter-Offset zwischen zwei Patterns (Pattern B = Schritt 64 usw.). */

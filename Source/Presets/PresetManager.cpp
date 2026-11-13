@@ -8,12 +8,38 @@
 //==============================================================================
 namespace
 {
+    /** CV-Kabel im Preset (Quelle -> Ziel, mit eigenem Amount). */
+    struct CvConnection
+    {
+        juce::String source;
+        juce::String target;
+        float amount { 0.25f };
+    };
+
     struct FactoryPreset
     {
         const char* name;
         std::vector<std::pair<juce::String, float>> values;
-        std::vector<std::pair<juce::String, juce::String>> parameterPatch {};
+        std::vector<CvConnection> parameterPatch {};
     };
+
+    /** M4: Die 5 Makros (TUNE/PUNCH/BOOM/DIRT/SPACE) sind echte Modulations-
+        quellen. Jedes Factory-Preset bekommt diese 5 Kabel (unipolar, additiv),
+        damit die Makro-Regler im Front-Panel wirklich etwas bewirken. */
+    struct MacroCable
+    {
+        int macroIndex;
+        const char* targetId;
+        float amount;
+    };
+
+    const std::array<MacroCable, 5> macroCables {{
+        { 1, ParameterIDs::fundamentalHz, 0.08f },
+        { 2, ParameterIDs::clickLevel,    0.15f },
+        { 3, ParameterIDs::subLevel,      0.20f },
+        { 4, ParameterIDs::driveAmount,   0.20f },
+        { 5, ParameterIDs::roomLevel,     0.25f }
+    }};
 
     int findParameterIndex (const juce::String& id)
     {
@@ -112,11 +138,12 @@ void PresetManager::initFactoryPresets()
     std::vector<FactoryPreset> presets
     {
         { "Deep Techno Kick", {
+            { ParameterIDs::bodyTuning, 2.0f },
             { ParameterIDs::fundamentalHz,       46.25f },
             { ParameterIDs::membraneTension,      0.45f },
-            { ParameterIDs::pitchEnvDepth,        0.55f },
-            { ParameterIDs::pitchEnvDecay,        60.0f },
-            { ParameterIDs::bodyLevel,            0.70f },
+            { ParameterIDs::pitchEnvDepth, 1.3f },
+            { ParameterIDs::pitchEnvDecay, 45.0f },
+            { ParameterIDs::bodyLevel, 0.45f },
             { ParameterIDs::bodyDecay,           420.0f },
             { ParameterIDs::clickLevel,           0.45f },
             { ParameterIDs::driveAmount,          0.40f },
@@ -126,7 +153,7 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::compThreshold,       -8.0f },
             { ParameterIDs::compRatio,            3.0f },
             { ParameterIDs::compMakeup,           0.0f },
-            { ParameterIDs::outputGain,           -2.80f },
+            { ParameterIDs::outputGain, 2.13f },
             { ParameterIDs::outputClip,           0.05f },
             { ParameterIDs::roomLevel,            0.18f },
             { ParameterIDs::reverbMaterial,       4.0f },
@@ -135,16 +162,17 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::higgsMix,            0.12f }
         } },
         { "Hard Acid Kick", {
+            { ParameterIDs::bodyTuning, 2.0f },
             { ParameterIDs::fundamentalHz,       46.25f },
             { ParameterIDs::membraneTension,      0.7f },
             { ParameterIDs::membraneDamping,      0.35f },
             { ParameterIDs::membraneModes,        4.0f },
-            { ParameterIDs::pitchEnvDepth,        0.55f },
-            { ParameterIDs::pitchEnvDecay,        45.0f },
+            { ParameterIDs::pitchEnvDepth, 1.6f },
+            { ParameterIDs::pitchEnvDecay, 35.0f },
             { ParameterIDs::clickLevel,           0.45f },
             { ParameterIDs::clickTone,            0.50f },
             { ParameterIDs::clickBeaterMaterial,  2.0f },
-            { ParameterIDs::bodyLevel,            0.70f },
+            { ParameterIDs::bodyLevel, 0.45f },
             { ParameterIDs::bodyDecay,           350.0f },
             { ParameterIDs::driveAmount,          0.45f },
             { ParameterIDs::driveMix,             0.45f },
@@ -154,21 +182,22 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::eqPunchGain,          3.0f },
             { ParameterIDs::compThreshold,       -8.0f },
             { ParameterIDs::compRatio,            3.0f },
-            { ParameterIDs::outputGain,           -1.00f },
+            { ParameterIDs::outputGain, 4.29f },
             { ParameterIDs::outputClip,           0.05f },
             { ParameterIDs::roomLevel,            0.15f },
             { ParameterIDs::reverbMix,           0.08f },
             { ParameterIDs::higgsEnabled,         0.0f }
         } },
         { "808 Boomy", {
+            { ParameterIDs::bodyTuning, 2.0f },
             { ParameterIDs::fundamentalHz,       46.25f },
             { ParameterIDs::membraneTension,      0.25f },
             { ParameterIDs::membraneDamping,      0.14f },
             { ParameterIDs::membraneModes,        3.0f },
-            { ParameterIDs::pitchEnvDepth,        0.55f },
-            { ParameterIDs::pitchEnvDecay,       220.0f },
-            { ParameterIDs::bodyLevel,            0.85f },
-            { ParameterIDs::bodyDecay,          1800.0f },
+            { ParameterIDs::pitchEnvDepth, 1.2f },
+            { ParameterIDs::pitchEnvDecay, 180.0f },
+            { ParameterIDs::bodyLevel, 0.55f },
+            { ParameterIDs::bodyDecay, 900.0f },
             { ParameterIDs::clickLevel,           0.28f },
             { ParameterIDs::subLevel,             0.30f },
             { ParameterIDs::subDecay,            900.0f },
@@ -178,7 +207,7 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::compThreshold,      -10.0f },
             { ParameterIDs::compRatio,            3.0f },
             { ParameterIDs::compMakeup,           0.0f },
-            { ParameterIDs::outputGain,          -5.80f },
+            { ParameterIDs::outputGain, 0.91f },
             { ParameterIDs::outputClip,           0.05f },
             { ParameterIDs::roomLevel,            0.30f },
             { ParameterIDs::roomRumble,           0.30f },
@@ -187,10 +216,12 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::higgsEnabled,         0.0f }
         } },
         { "Tight Techno", {
+            { ParameterIDs::bodyTuning, 2.0f },
+            { ParameterIDs::bodyLevel, 0.5f },
             { ParameterIDs::fundamentalHz,       46.25f },
             { ParameterIDs::membraneDamping,      0.32f },
-            { ParameterIDs::pitchEnvDepth,        0.55f },
-            { ParameterIDs::pitchEnvDecay,        50.0f },
+            { ParameterIDs::pitchEnvDepth, 1.5f },
+            { ParameterIDs::pitchEnvDecay, 40.0f },
             { ParameterIDs::clickLevel,           0.45f },
             { ParameterIDs::clickTone,            0.42f },
             { ParameterIDs::bodyDecay,           320.0f },
@@ -199,7 +230,7 @@ void PresetManager::initFactoryPresets()
             { ParameterIDs::compRatio,            3.0f },
             { ParameterIDs::compAttack,           8.0f },
             { ParameterIDs::compRelease,        110.0f },
-            { ParameterIDs::outputGain,           -1.75f },
+            { ParameterIDs::outputGain, 2.08f },
             { ParameterIDs::outputClip,           0.05f },
             { ParameterIDs::roomLevel,           0.12f },
             { ParameterIDs::reverbMaterial,       0.0f },
@@ -210,11 +241,12 @@ void PresetManager::initFactoryPresets()
 
     // Drei zusätzliche C.E.R.N-Presets mit Parameter-CV-Modulation und Higgs-Feld.
     presets.push_back ({ "CV Pulse Kick", {
+        { ParameterIDs::bodyTuning, 2.0f },
         { ParameterIDs::fundamentalHz,       46.25f },
         { ParameterIDs::membraneTension,      0.30f },
-        { ParameterIDs::pitchEnvDepth,        0.55f },
+        { ParameterIDs::pitchEnvDepth, 1.4f },
         { ParameterIDs::pitchEnvDecay,        55.0f },
-        { ParameterIDs::bodyLevel,            0.70f },
+        { ParameterIDs::bodyLevel, 0.45f },
         { ParameterIDs::bodyDecay,           520.0f },
         { ParameterIDs::clickLevel,           0.45f },
         { ParameterIDs::clickTone,            0.45f },
@@ -227,7 +259,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compThreshold,       -8.0f },
         { ParameterIDs::compRatio,            3.0f },
         { ParameterIDs::compMakeup,           0.0f },
-        { ParameterIDs::outputGain,          -4.30f },
+        { ParameterIDs::outputGain, 1.16f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::roomLevel,            0.12f },
         { ParameterIDs::reverbMix,           0.08f },
@@ -243,9 +275,10 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::higgsDecay,           0.60f },
         { ParameterIDs::higgsVev,             0.75f },
         { ParameterIDs::higgsCursorPhi,       0.35f },
+        { ParameterIDs::bodyTuning, 2.0f },
         { ParameterIDs::higgsCursorTheta,     90.0f }
     }, {
-        { ParameterIDs::bodyLevel, ParameterIDs::driveMix }
+        { ParameterIDs::bodyLevel, ParameterIDs::driveMix, 0.25f }
     } });
 
     presets.push_back ({ "Higgs Mod Kick", {
@@ -253,9 +286,9 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::membraneTension,      0.65f },
         { ParameterIDs::membraneDamping,      0.24f },
         { ParameterIDs::membraneModes,        4.0f },
-        { ParameterIDs::pitchEnvDepth,        0.55f },
+        { ParameterIDs::pitchEnvDepth, 1.3f },
         { ParameterIDs::pitchEnvDecay,        90.0f },
-        { ParameterIDs::bodyLevel,            0.70f },
+        { ParameterIDs::bodyLevel, 0.45f },
         { ParameterIDs::bodyDecay,           700.0f },
         { ParameterIDs::clickLevel,           0.45f },
         { ParameterIDs::subLevel,             0.30f },
@@ -267,7 +300,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compThreshold,      -10.0f },
         { ParameterIDs::compRatio,            3.0f },
         { ParameterIDs::compMakeup,           0.0f },
-        { ParameterIDs::outputGain,          -4.75f },
+        { ParameterIDs::outputGain, 2.3f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::roomLevel,            0.30f },
         { ParameterIDs::roomRumble,           0.30f },
@@ -285,20 +318,21 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::higgsDecay,           0.70f },
         { ParameterIDs::higgsVev,             0.75f },
         { ParameterIDs::higgsCursorPhi,       0.65f },
-        { ParameterIDs::higgsCursorTheta,    220.0f }
+        { ParameterIDs::higgsCursorTheta,    220.0f },
+        { ParameterIDs::bodyTuning,           2.00f }
     }, {
-        { ParameterIDs::higgsSelfCoupling, ParameterIDs::higgsFieldStrength },
-        { ParameterIDs::higgsBosonQ, ParameterIDs::higgsMix },
-        { ParameterIDs::subLevel, ParameterIDs::roomRumble },
-        { ParameterIDs::membraneTension, ParameterIDs::higgsSymmetry }
+        { ParameterIDs::higgsSelfCoupling, ParameterIDs::higgsFieldStrength, 0.25f },
+        { ParameterIDs::higgsBosonQ, ParameterIDs::higgsMix, 0.25f },
+        { ParameterIDs::subLevel, ParameterIDs::roomRumble, 0.25f },
+        { ParameterIDs::membraneTension, ParameterIDs::higgsSymmetry, 0.25f }
     } });
 
     presets.push_back ({ "Parameter Patch Kick", {
         { ParameterIDs::fundamentalHz,       46.25f },
         { ParameterIDs::membraneTension,      0.40f },
-        { ParameterIDs::pitchEnvDepth,        0.55f },
+        { ParameterIDs::pitchEnvDepth, 1.45f },
         { ParameterIDs::pitchEnvDecay,        60.0f },
-        { ParameterIDs::bodyLevel,            0.60f },
+        { ParameterIDs::bodyLevel, 0.45f },
         { ParameterIDs::bodyDecay,           500.0f },
         { ParameterIDs::clickLevel,           0.45f },
         { ParameterIDs::clickTone,            0.45f },
@@ -314,7 +348,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compRatio,            3.0f },
         { ParameterIDs::compAttack,           8.0f },
         { ParameterIDs::compRelease,        110.0f },
-        { ParameterIDs::outputGain,           -2.10f },
+        { ParameterIDs::outputGain, 1.77f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::roomLevel,            0.12f },
         { ParameterIDs::roomDecay,          250.0f },
@@ -334,7 +368,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::higgsCursorPhi,       0.45f },
         { ParameterIDs::higgsCursorTheta,    150.0f }
     }, {
-        { ParameterIDs::higgsFieldStrength, ParameterIDs::higgsBosonQ }
+        { ParameterIDs::higgsFieldStrength, ParameterIDs::higgsBosonQ, 0.25f }
     } });
 
     // Aus Analyse von „Ean Roley Jade - FREMD LAB.wav" (Segment 30–38 s,
@@ -350,18 +384,18 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::membraneModes,        4.0f },
         { ParameterIDs::membraneNonlinearity, 0.18f },
         { ParameterIDs::pitchEnvAttack,       0.1f },
-        { ParameterIDs::pitchEnvDecay,        60.0f },
-        { ParameterIDs::pitchEnvDepth,        0.55f },
+        { ParameterIDs::pitchEnvDecay, 50.0f },
+        { ParameterIDs::pitchEnvDepth, 1.25f },
         { ParameterIDs::pitchEnvCurve,        -0.15f },
         { ParameterIDs::clickLevel,           0.45f },
         { ParameterIDs::clickDecay,           3.5f },
         { ParameterIDs::clickTone,            0.34f },
         { ParameterIDs::clickDistortion,      0.18f },
         { ParameterIDs::clickBeaterMaterial,  1.0f },
-        { ParameterIDs::bodyLevel,            0.64f },
+        { ParameterIDs::bodyLevel, 0.45f },
         { ParameterIDs::bodyAttack,           0.5f },
         { ParameterIDs::bodyDecay,           320.0f },
-        { ParameterIDs::bodyTuning,           1.0f },
+        { ParameterIDs::bodyTuning, 2.0f },
         { ParameterIDs::tubeResonanceLevel,   0.14f },
         { ParameterIDs::tubeCoupling,         0.34f },
         { ParameterIDs::subLevel,             0.64f },
@@ -386,7 +420,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compAutoMakeup,       0.0f },
         { ParameterIDs::transientAttack,      2.0f },
         { ParameterIDs::transientSustain,     0.0f },
-        { ParameterIDs::outputGain,           +1.10f },
+        { ParameterIDs::outputGain, 3.87f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::outputLimiter,        0.15f },
         { ParameterIDs::roomLevel,            0.10f },
@@ -416,17 +450,17 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::membraneNonlinearity, 0.18f },
         { ParameterIDs::pitchEnvAttack,       0.1f },
         { ParameterIDs::pitchEnvDecay,        60.0f },
-        { ParameterIDs::pitchEnvDepth,        0.55f },
+        { ParameterIDs::pitchEnvDepth, 1.2f },
         { ParameterIDs::pitchEnvCurve,        -0.15f },
         { ParameterIDs::clickLevel,           0.38f },
         { ParameterIDs::clickDecay,           3.5f },
         { ParameterIDs::clickTone,            0.24f },
         { ParameterIDs::clickDistortion,      0.18f },
         { ParameterIDs::clickBeaterMaterial,  1.0f },
-        { ParameterIDs::bodyLevel,            0.62f },
+        { ParameterIDs::bodyLevel, 0.4f },
         { ParameterIDs::bodyAttack,           0.5f },
         { ParameterIDs::bodyDecay,           320.0f },
-        { ParameterIDs::bodyTuning,           1.0f },
+        { ParameterIDs::bodyTuning, 2.0f },
         { ParameterIDs::tubeResonanceLevel,   0.20f },
         { ParameterIDs::tubeCoupling,         0.34f },
         { ParameterIDs::subLevel,             0.68f },
@@ -451,7 +485,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compAutoMakeup,       0.0f },
         { ParameterIDs::transientAttack,      2.0f },
         { ParameterIDs::transientSustain,     0.0f },
-        { ParameterIDs::outputGain,           +1.30f },
+        { ParameterIDs::outputGain, 3.89f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::outputLimiter,        0.15f },
         { ParameterIDs::roomLevel,            0.10f },
@@ -482,18 +516,18 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::membraneModes,        5.0f },
         { ParameterIDs::membraneNonlinearity, 0.16f },
         { ParameterIDs::pitchEnvAttack,       0.1f },
-        { ParameterIDs::pitchEnvDecay,        38.0f },
-        { ParameterIDs::pitchEnvDepth,        0.55f },
+        { ParameterIDs::pitchEnvDecay, 30.0f },
+        { ParameterIDs::pitchEnvDepth, 1.7f },
         { ParameterIDs::pitchEnvCurve,        -0.10f },
         { ParameterIDs::clickLevel,           0.45f },
         { ParameterIDs::clickDecay,           3.8f },
         { ParameterIDs::clickTone,            0.50f },
         { ParameterIDs::clickDistortion,      0.22f },
         { ParameterIDs::clickBeaterMaterial,  2.0f }, // Hard
-        { ParameterIDs::bodyLevel,            0.58f },
+        { ParameterIDs::bodyLevel, 0.42f },
         { ParameterIDs::bodyAttack,           0.4f },
         { ParameterIDs::bodyDecay,           240.0f },
-        { ParameterIDs::bodyTuning,           1.0f },
+        { ParameterIDs::bodyTuning, 2.0f },
         { ParameterIDs::tubeResonanceLevel,   0.28f },
         { ParameterIDs::tubeCoupling,         0.40f },
         { ParameterIDs::subLevel,             0.34f },
@@ -518,7 +552,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compAutoMakeup,       0.0f },
         { ParameterIDs::transientAttack,      3.0f },
         { ParameterIDs::transientSustain,     0.0f },
-        { ParameterIDs::outputGain,           -0.70f },
+        { ParameterIDs::outputGain, 4.7f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::outputLimiter,        0.15f },
         { ParameterIDs::roomLevel,            0.08f },
@@ -543,17 +577,17 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::membraneNonlinearity, 0.20f },
         { ParameterIDs::pitchEnvAttack,       0.1f },
         { ParameterIDs::pitchEnvDecay,        95.0f },
-        { ParameterIDs::pitchEnvDepth,        0.55f },
+        { ParameterIDs::pitchEnvDepth, 1.15f },
         { ParameterIDs::pitchEnvCurve,        -0.20f },
         { ParameterIDs::clickLevel,           0.22f },
         { ParameterIDs::clickDecay,           5.0f },
         { ParameterIDs::clickTone,            0.12f },
         { ParameterIDs::clickDistortion,      0.10f },
         { ParameterIDs::clickBeaterMaterial,  0.0f }, // Soft
-        { ParameterIDs::bodyLevel,            0.84f },
+        { ParameterIDs::bodyLevel, 0.5f },
         { ParameterIDs::bodyAttack,           1.0f },
         { ParameterIDs::bodyDecay,           620.0f },
-        { ParameterIDs::bodyTuning,           1.0f },
+        { ParameterIDs::bodyTuning, 2.0f },
         { ParameterIDs::tubeResonanceFreq,    85.0f },
         { ParameterIDs::tubeResonanceQ,        5.0f },
         { ParameterIDs::tubeResonanceLevel,   0.52f },
@@ -581,7 +615,7 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::compAutoMakeup,       0.0f },
         { ParameterIDs::transientAttack,      1.0f },
         { ParameterIDs::transientSustain,     0.0f },
-        { ParameterIDs::outputGain,          -2.20f },
+        { ParameterIDs::outputGain, 1.57f },
         { ParameterIDs::outputClip,           0.05f },
         { ParameterIDs::outputLimiter,        0.22f },
         { ParameterIDs::roomLevel,            0.14f },
@@ -595,6 +629,169 @@ void PresetManager::initFactoryPresets()
         { ParameterIDs::materialRoomMix,      0.09f },
         { ParameterIDs::materialRoomLayer,    0.0f }, // Kick
         { ParameterIDs::materialRoomWidth,    0.30f },
+        { ParameterIDs::higgsEnabled,         0.0f }
+    } });
+
+    // ---- Neue Presets aus dem Sound-Engineer-Review 2026-11-13 ----
+    // Detroit 909: original ~50 Hz, kurzer Pitch-Abfall, harter Click, kein Rumble.
+    presets.push_back ({ "Detroit 909 Classic", {
+        { ParameterIDs::fundamentalHz,       50.00f },
+        { ParameterIDs::membraneTension,      0.50f },
+        { ParameterIDs::membraneDamping,      0.35f },
+        { ParameterIDs::membraneModes,        4.0f },
+        { ParameterIDs::membraneNonlinearity, 0.30f },
+        { ParameterIDs::pitchEnvAttack,       0.1f },
+        { ParameterIDs::pitchEnvDecay,        40.0f },
+        { ParameterIDs::pitchEnvDepth,        1.80f },
+        { ParameterIDs::pitchEnvCurve,        -0.10f },
+        { ParameterIDs::clickLevel,           0.50f },
+        { ParameterIDs::clickDecay,           2.0f },
+        { ParameterIDs::clickTone,            0.55f },
+        { ParameterIDs::clickDistortion,      0.20f },
+        { ParameterIDs::clickBeaterMaterial,  2.0f },
+        { ParameterIDs::bodyLevel,            0.35f },
+        { ParameterIDs::bodyTuning,           2.00f },
+        { ParameterIDs::bodyDecay,           300.0f },
+        { ParameterIDs::tubeResonanceLevel,   0.08f },
+        { ParameterIDs::subLevel,             0.42f },
+        { ParameterIDs::subDecay,            320.0f },
+        { ParameterIDs::driveAmount,          0.12f },
+        { ParameterIDs::driveMix,             0.25f },
+        { ParameterIDs::compThreshold,       -8.0f },
+        { ParameterIDs::compRatio,            2.5f },
+        { ParameterIDs::outputGain, 4.73f },
+        { ParameterIDs::outputClip,           0.05f },
+        { ParameterIDs::roomLevel,            0.06f },
+        { ParameterIDs::reverbMix,            0.04f }
+    } });
+
+    // Dub-Chord-Kick: langer Body (Shell-Band), Tube-Charakter, Reverb-Anteil.
+    presets.push_back ({ "Dub Chord Kick", {
+        { ParameterIDs::fundamentalHz,       46.25f },
+        { ParameterIDs::membraneTension,      0.35f },
+        { ParameterIDs::membraneDamping,      0.28f },
+        { ParameterIDs::pitchEnvAttack,       0.2f },
+        { ParameterIDs::pitchEnvDecay,       120.0f },
+        { ParameterIDs::pitchEnvDepth,        1.10f },
+        { ParameterIDs::clickLevel,           0.30f },
+        { ParameterIDs::clickDecay,           4.0f },
+        { ParameterIDs::clickTone,            0.40f },
+        { ParameterIDs::bodyLevel,            0.55f },
+        { ParameterIDs::bodyTuning,           2.00f },
+        { ParameterIDs::bodyDecay,           900.0f },
+        { ParameterIDs::tubeResonanceFreq,   92.50f },
+        { ParameterIDs::tubeResonanceQ,       3.0f },
+        { ParameterIDs::tubeResonanceLevel,   0.45f },
+        { ParameterIDs::tubeCoupling,         0.50f },
+        { ParameterIDs::subLevel,             0.45f },
+        { ParameterIDs::subDecay,            600.0f },
+        { ParameterIDs::driveAmount,          0.20f },
+        { ParameterIDs::driveMix,             0.35f },
+        { ParameterIDs::compThreshold,      -10.0f },
+        { ParameterIDs::compRatio,            2.0f },
+        { ParameterIDs::outputGain, 0.26f },
+        { ParameterIDs::outputClip,           0.05f },
+        { ParameterIDs::roomLevel,            0.20f },
+        { ParameterIDs::roomDecay,          1200.0f },
+        { ParameterIDs::reverbMaterial,       4.0f },
+        { ParameterIDs::reverbMix,            0.18f },
+        { ParameterIDs::reverbDecay,         1800.0f }
+    } });
+
+    // Hard Techno: Wave-Fold-Saettigung, Pre-HP, trockener Raum.
+    presets.push_back ({ "Hard Techno Distorted", {
+        { ParameterIDs::fundamentalHz,       46.25f },
+        { ParameterIDs::membraneTension,      0.45f },
+        { ParameterIDs::membraneDamping,      0.30f },
+        { ParameterIDs::pitchEnvAttack,       0.1f },
+        { ParameterIDs::pitchEnvDecay,        45.0f },
+        { ParameterIDs::pitchEnvDepth,        1.55f },
+        { ParameterIDs::clickLevel,           0.35f },
+        { ParameterIDs::clickDecay,           3.0f },
+        { ParameterIDs::clickTone,            0.62f },
+        { ParameterIDs::clickDistortion,      0.30f },
+        { ParameterIDs::bodyLevel,            0.40f },
+        { ParameterIDs::bodyTuning,           2.00f },
+        { ParameterIDs::bodyDecay,           280.0f },
+        { ParameterIDs::tubeResonanceLevel,   0.35f },
+        { ParameterIDs::tubeCoupling,         0.45f },
+        { ParameterIDs::subLevel,             0.50f },
+        { ParameterIDs::subDecay,            500.0f },
+        { ParameterIDs::driveAmount,          0.60f },
+        { ParameterIDs::driveMix,             0.60f },
+        { ParameterIDs::driveCharacter,       3.0f }, // Wave Fold
+        { ParameterIDs::drivePreHP,           0.35f },
+        { ParameterIDs::eqPunchGain,          2.0f },
+        { ParameterIDs::compThreshold,      -10.0f },
+        { ParameterIDs::compRatio,            3.0f },
+        { ParameterIDs::outputGain, 6.56f },
+        { ParameterIDs::outputClip,           0.05f },
+        { ParameterIDs::roomLevel,            0.10f }
+    } });
+
+    // Minimal: nur Click + Sub, kein Tube, kein Room, sehr trocken.
+    presets.push_back ({ "Minimal Click Kick", {
+        { ParameterIDs::fundamentalHz,       46.25f },
+        { ParameterIDs::membraneTension,      0.42f },
+        { ParameterIDs::membraneDamping,      0.40f },
+        { ParameterIDs::membraneModes,        3.0f },
+        { ParameterIDs::pitchEnvAttack,       0.1f },
+        { ParameterIDs::pitchEnvDecay,        35.0f },
+        { ParameterIDs::pitchEnvDepth,        1.45f },
+        { ParameterIDs::clickLevel,           0.55f },
+        { ParameterIDs::clickDecay,           2.0f },
+        { ParameterIDs::clickTone,            0.55f },
+        { ParameterIDs::clickDistortion,      0.10f },
+        { ParameterIDs::clickBeaterMaterial,  2.0f },
+        { ParameterIDs::bodyLevel,            0.30f },
+        { ParameterIDs::bodyTuning,           2.00f },
+        { ParameterIDs::bodyDecay,           200.0f },
+        { ParameterIDs::tubeResonanceLevel,   0.00f },
+        { ParameterIDs::subLevel,             0.42f },
+        { ParameterIDs::subDecay,            280.0f },
+        { ParameterIDs::driveAmount,          0.08f },
+        { ParameterIDs::driveMix,             0.20f },
+        { ParameterIDs::compThreshold,       -6.0f },
+        { ParameterIDs::compRatio,            2.0f },
+        { ParameterIDs::compAttack,           3.0f },
+        { ParameterIDs::outputGain, 7.88f },
+        { ParameterIDs::outputClip,           0.05f },
+        { ParameterIDs::roomLevel,            0.04f },
+        { ParameterIDs::reverbMix,            0.00f },
+        { ParameterIDs::materialRoomEnabled,  0.0f },
+        { ParameterIDs::higgsEnabled,         0.0f }
+    } });
+
+    // Maximaler Club-Sub: Sub-Oktave, wenig Click, kein Shell-Band.
+    presets.push_back ({ "Sub Only (23 Hz)", {
+        { ParameterIDs::fundamentalHz,       46.25f },
+        { ParameterIDs::membraneTension,      0.30f },
+        { ParameterIDs::membraneDamping,      0.18f },
+        { ParameterIDs::membraneModes,        3.0f },
+        { ParameterIDs::membraneNonlinearity, 0.25f },
+        { ParameterIDs::pitchEnvAttack,       0.1f },
+        { ParameterIDs::pitchEnvDecay,        60.0f },
+        { ParameterIDs::pitchEnvDepth,        1.15f },
+        { ParameterIDs::clickLevel,           0.30f },
+        { ParameterIDs::clickDecay,           5.0f },
+        { ParameterIDs::clickTone,            0.20f },
+        { ParameterIDs::bodyLevel,            0.25f },
+        { ParameterIDs::bodyTuning,           2.00f },
+        { ParameterIDs::bodyDecay,           400.0f },
+        { ParameterIDs::subLevel,             0.70f },
+        { ParameterIDs::subDecay,            700.0f },
+        { ParameterIDs::subRatio,             0.0f }, // Sub-Oktave (~23 Hz)
+        { ParameterIDs::subShape,             0.0f }, // Sine
+        { ParameterIDs::driveAmount,          0.05f },
+        { ParameterIDs::driveMix,             0.15f },
+        { ParameterIDs::eqRumbleHP,          18.0f },
+        { ParameterIDs::eqSubGain,            4.0f },
+        { ParameterIDs::compThreshold,      -12.0f },
+        { ParameterIDs::compRatio,            3.0f },
+        { ParameterIDs::outputGain, 10.61f },
+        { ParameterIDs::outputClip,           0.05f },
+        { ParameterIDs::roomLevel,            0.05f },
+        { ParameterIDs::materialRoomEnabled,  0.0f },
         { ParameterIDs::higgsEnabled,         0.0f }
     } });
 
@@ -614,14 +811,14 @@ void PresetManager::initFactoryPresets()
         for (const auto& [id, value] : preset.values)
             setParameterValue (state, id, value);
 
-        for (const auto& [sourceId, targetId] : preset.parameterPatch)
+        for (const auto& connection : preset.parameterPatch)
         {
-            const int sourceIndex = findParameterIndex (sourceId);
-            const int targetIndex = findParameterIndex (targetId);
+            const int sourceIndex = findParameterIndex (connection.source);
+            const int targetIndex = findParameterIndex (connection.target);
 
             if (sourceIndex >= 0 && targetIndex >= 0)
             {
-                parameterPatch.addConnection (sourceIndex, targetIndex);
+                parameterPatch.addConnection (sourceIndex, targetIndex, connection.amount);
             }
             else
             {
@@ -629,8 +826,19 @@ void PresetManager::initFactoryPresets()
                 // stillschweigend aus dem Preset verschwinden.
                 jassertfalse;
                 DBG ("Preset \"" << preset.name << "\": unbekannte CV-ID "
-                     << (sourceIndex < 0 ? sourceId : targetId));
+                     << (sourceIndex < 0 ? connection.source : connection.target));
             }
+        }
+
+        // M4: Die 5 Makro-Kabel (TUNE/PUNCH/BOOM/DIRT/SPACE) in jedes Preset.
+        // Unipolar und additiv: bei Makro = 0 bleibt der Presetwert unveraendert.
+        for (const auto& cable : macroCables)
+        {
+            const int sourceIndex = findParameterIndex (ParameterIDs::macro (cable.macroIndex));
+            const int targetIndex = findParameterIndex (cable.targetId);
+
+            if (sourceIndex >= 0 && targetIndex >= 0)
+                parameterPatch.addConnection (sourceIndex, targetIndex, cable.amount);
         }
 
         std::unique_ptr<juce::XmlElement> xml (state.createXml());

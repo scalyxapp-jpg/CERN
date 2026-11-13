@@ -330,6 +330,30 @@ bool ParameterPatchGraph::addConnection (int sourceParam, int targetParam)
     return true;
 }
 
+bool ParameterPatchGraph::addConnection (int sourceParam, int targetParam, float amount)
+{
+    juce::SpinLock::ScopedLockType sl (stateLock);
+
+    if (hasConnection (sourceParam, targetParam))
+        return false;
+
+    if (! canConnectTopologyUnlocked (sourceParam, targetParam))
+        return false;
+
+    if (! sourceEnabled[(size_t) sourceParam] || ! targetEnabled[(size_t) targetParam])
+        return false;
+
+    if (connections.size() >= (size_t) maxConnectionCount)
+        return false;
+
+    Connection connection {};
+    connection.sourceParam = sourceParam;
+    connection.targetParam = targetParam;
+    connection.amount = juce::jlimit (-1.0f, 1.0f, amount);
+    connections.push_back (connection);
+    return true;
+}
+
 bool ParameterPatchGraph::removeConnection (int connectionIndex)
 {
     juce::SpinLock::ScopedLockType sl (stateLock);
@@ -668,8 +692,11 @@ std::unique_ptr<juce::XmlElement> ParameterPatchGraph::createStateXml() const
     // erweiterten Felder (amount/unipolar/slew/rate) oder Wrap tatsächlich nutzt.
     bool needsV4 = wrapEnabled;
 
+    // v3 bleibt das Format fuer Standardkabel (Amount = Standardwert 0,25);
+    // v4 wird nur geschrieben, wenn ein Kabel die erweiterten Felder
+    // (amount/unipolar/slew/rate) abweichend nutzt oder Wrap aktiv ist.
     for (const auto& connection : connections)
-        if (connection.amount != 1.0f || connection.unipolar
+        if (connection.amount != Connection {}.amount || connection.unipolar
             || connection.slewMs > 0.0f || connection.rate != CvRate::perBlock)
             needsV4 = true;
 

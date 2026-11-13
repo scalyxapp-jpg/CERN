@@ -32,9 +32,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     layout.add (addFloat (ParameterIDs::membraneRadius,       "Membrane Radius",       { 0.05f, 0.5f, 0.01f, 0.5f }, DefaultValues::membraneRadius));
     layout.add (addFloat (ParameterIDs::membraneMass,         "Membrane Mass",         { 0.1f, 2.0f, 0.01f, 0.5f }, DefaultValues::membraneMass));
     layout.add (addFloat (ParameterIDs::membraneDamping,      "Membrane Damping",      { 0.0f, 1.0f, 0.01f }, DefaultValues::membraneDamping));
-    layout.add (addFloat (ParameterIDs::membraneModes,        "Membrane Modes",        { 1.0f, 12.0f, 1.0f }, DefaultValues::membraneModes));
+    layout.add (addFloat (ParameterIDs::membraneModes,        "Membrane Modes",        { 1.0f, 16.0f, 1.0f }, DefaultValues::membraneModes));
     layout.add (addFloat (ParameterIDs::fundamentalHz,        "Fundamental Hz",        { 25.0f, 180.0f, 0.01f, 0.5f }, DefaultValues::fundamentalHz));
-    layout.add (addFloat (ParameterIDs::membraneNonlinearity, "Membrane Nonlinearity", { 0.0f, 1.0f, 0.01f }, DefaultValues::membraneNonlinearity));
+    layout.add (addFloat (ParameterIDs::membraneNonlinearity, "Membrane Nonlinearity", { 0.0f, 2.0f, 0.01f }, DefaultValues::membraneNonlinearity));
     layout.add (addFloat (ParameterIDs::membraneStiffness,    "Membrane Stiffness",    { 0.0f, 1.0f, 0.01f }, DefaultValues::membraneStiffness));
 
     // ------------------------------------------------------------------
@@ -51,7 +51,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     // ------------------------------------------------------------------
     layout.add (addFloat (ParameterIDs::pitchEnvAttack,       "Pitch Attack",          { 0.1f, 50.0f, 0.1f, 0.5f }, DefaultValues::pitchEnvAttack));
     layout.add (addFloat (ParameterIDs::pitchEnvDecay,        "Pitch Decay",           { 20.0f, 1500.0f, 1.0f, 0.5f }, DefaultValues::pitchEnvDecay));
-    layout.add (addFloat (ParameterIDs::pitchEnvDepth,        "Pitch Depth",           { 0.0f, 2.0f, 0.01f }, DefaultValues::pitchEnvDepth));
+    layout.add (addFloat (ParameterIDs::pitchEnvDepth,        "Pitch Depth",           { 0.0f, 3.0f, 0.01f }, DefaultValues::pitchEnvDepth));
     layout.add (addFloat (ParameterIDs::pitchEnvCurve,        "Pitch Curve",           { -1.0f, 1.0f, 0.01f }, DefaultValues::pitchEnvCurve));
 
     // ------------------------------------------------------------------
@@ -182,7 +182,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     // Schritte bei hohem BPM.
     layout.add (std::make_unique<juce::AudioParameterBool> (
         ParameterIDs::sequencerPlaying, "Sequencer Playing", false, "Start/Stop"));
-    layout.add (addFloat (ParameterIDs::sequencerSteps,       "Sequencer Steps",       { 1.0f, 64.0f, 1.0f }, DefaultValues::sequencerSteps));
+    layout.add (addFloat (ParameterIDs::sequencerSteps,       "Sequencer Steps",       { 1.0f, 16.0f, 1.0f }, DefaultValues::sequencerSteps));
     layout.add (addFloat (ParameterIDs::sequencerSwing,       "Sequencer Swing",       { 0.0f, 0.75f, 0.01f }, DefaultValues::sequencerSwing));
     layout.add (std::make_unique<juce::AudioParameterChoice> (
         ParameterIDs::sequencerSyncMode, "Sequencer Sync Mode",
@@ -221,7 +221,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     // ------------------------------------------------------------------
     // Neue Pro-Schritt-Parameter: 4 Patterns x 64 Slots (patternStride) = 256
     // ------------------------------------------------------------------
-    for (int i = 0; i < 4 * 64; ++i)
+    for (int i = 0; i < 4 * 16; ++i)
     {
         const juce::String stepName = "Step " + juce::String (i + 1);
         layout.add (addFloat (ParameterIDs::stepRatchet (i),     stepName + " Ratchet",     { 1.0f, 4.0f, 1.0f }, 1.0f));
@@ -376,8 +376,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     layout.add (addFloat (ParameterIDs::layeringAmount, "Layering Amount",
                           { 0.0f, 200.0f, 1.0f }, 100.0f));
 
+    // ------------------------------------------------------------------
+    // 2.25 Click-Rauschanteil (M5): regelt Tick <-> Rausch im Click.
+    // Reihenfolge identisch zu ParameterIDs::getAllIDs() (dort am Ende).
+    // ------------------------------------------------------------------
+    layout.add (addFloat (ParameterIDs::clickNoiseMix, "Click Noise Mix",
+                          { 0.0f, 1.0f, 0.01f }, DefaultValues::clickNoiseMix));
+
     // 1199 Basis-Parameter + 12 Module-Enables + 15 Material Room + 3 Feature
-    // + 78 Mixer + 1 Sidechain + 2 Layering = 1310 (siehe numLayoutParameters).
+    // + 78 Mixer + 1 Sidechain + 2 Layering + 1 Click-Noise = 1311 (siehe numLayoutParameters).
     jassert (getLayoutParameterCount() == numLayoutParameters);
 
     return layout;

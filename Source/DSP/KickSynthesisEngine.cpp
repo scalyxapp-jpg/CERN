@@ -179,6 +179,10 @@ void KickSynthesisEngine::reset()
     bodyOmegaBase = 0.0f;
     bodyPeak = 0.0f;
     bodyInAttack = false;
+    bodyBpX1 = 0.0f;
+    bodyBpX2 = 0.0f;
+    bodyBpY1 = 0.0f;
+    bodyBpY2 = 0.0f;
 
     // Room
     roomFeedback = 0.0f;
@@ -194,6 +198,14 @@ void KickSynthesisEngine::reset()
     roomFbYPrevL = 0.0f;
     roomFbXPrevR = 0.0f;
     roomFbYPrevR = 0.0f;
+    roomHpX1L = 0.0f;
+    roomHpX2L = 0.0f;
+    roomHpY1L = 0.0f;
+    roomHpY2L = 0.0f;
+    roomHpX1R = 0.0f;
+    roomHpX2R = 0.0f;
+    roomHpY1R = 0.0f;
+    roomHpY2R = 0.0f;
     std::fill (roomDelayL.begin(), roomDelayL.end(), 0.0f);
     std::fill (roomDelayR.begin(), roomDelayR.end(), 0.0f);
 
@@ -206,10 +218,9 @@ void KickSynthesisEngine::reset()
     driveSplitCoeff = 0.0f;
     driveDcCoeff = 0.0f;
     drivePreHpActive = false;
-    driveCachedAmount = -1.0f;
-    driveNormCache = 1.0f;
     drivePeak = 0.0f;
     driveOutputLevelDb = -100.0f;
+    driveLatencyActive = false;
 
     // 2x-Oversampling (SND-179)
     driveUp.reset();
@@ -254,8 +265,10 @@ void KickSynthesisEngine::reset()
     clipMinGain = 1.0f;
 
     // EQ
-    eqSubState1 = 0.0f;
-    eqSubState2 = 0.0f;
+    eqShelfX1 = 0.0f;
+    eqShelfX2 = 0.0f;
+    eqShelfY1 = 0.0f;
+    eqShelfY2 = 0.0f;
     eqHighShelfState = 0.0f;
     eqHighpassState = 0.0f;
     eqPunchX1 = 0.0f;
@@ -273,8 +286,6 @@ void KickSynthesisEngine::reset()
     monoBelowCoeffValue = 1.0f;
     monoBelowActive = false;
     outputWidthValue = 1.0f;
-    clipDrive = 1.0f;
-    clipNorm = 1.0f;
     clipCeiling = 1.0f;
     clipActive = false;
 
@@ -284,6 +295,13 @@ void KickSynthesisEngine::reset()
     limiterMinGain = 1.0f;
     limiterGainReductionDb = 0.0f;
     limiterGainReductionMaxDb = 0.0f;
+    limiterPrevL = 0.0f;
+    limiterPrev2L = 0.0f;
+    limiterPrevR = 0.0f;
+    limiterPrev2R = 0.0f;
+    limiterHistoryValid = false;
+    blockTruePeak = 0.0f;
+    truePeakDb = -100.0f;
 
     // Trigger-Queue (Audio-Thread)
     triggerCount = 0;
@@ -358,7 +376,9 @@ void KickSynthesisEngine::trigger (float velocity, float pitchSemitones)
     // Sub-Phase: 0 bei Ratio 1.0, pi/2 bei 0.5 (SND-051).
     subPhase = (subRatio < 0.75f) ? juce::MathConstants<float>::halfPi : 0.0f;
     subTriState = 0.0f;
-    subEnv = juce::jlimit (0.0f, 1.0f, velocity) * 0.8f;
+    // B5: der Sub startet mit dem vollen Velocity-Pegel (vorher 0.8x, d. h.
+    // der Spitzenpegel lag 20 % unter dem eingestellten Level).
+    subEnv = juce::jlimit (0.0f, 1.0f, velocity);
 
     // Body-Resonator: Start bei pi/2 (Cosinus-Phase, kein Klick) und Level
     // direkt aus der Velocity (kein fester 0.6-Faktor mehr, SND-047).
@@ -470,17 +490,33 @@ void KickSynthesisEngine::updateSubOscillator (float tunedFundamental, float dec
 void KickSynthesisEngine::updateBodyOscillator (float tunedFundamental, float tuning,
                                                 float decayMs, float attackMs)
 {
-    // +3 Cent Detune gegen die Membran (SND-042) -> kein Phasen-Lock,
-    // sehr leichte Schwebung zwischen Body und Grundton.
+    // B4: Der Body ist ein Shell-Band bei tunedFundamental * bodyTuning
+    // (bodyTuning = 2.0 => 92,5 Hz bei f0 = 46,25 Hz). Die bisherige
+    // +3-Cent-Detune entfaellt: bei bodyTuning = 2 liegt das Band nicht mehr
+    // auf dem Fundamental (kein Phasen-Lock mehr noetig).
     const float bodyFreq = juce::jlimit (15.0f, 2000.0f,
-                                         tunedFundamental * juce::jlimit (0.5f, 2.0f, tuning)
-                                           * 1.00173f);
+                                         tunedFundamental * juce::jlimit (0.5f, 2.0f, tuning));
     const float bodyFreqClamped = juce::jlimit (1.0f, 0.45f * (float) sampleRate, bodyFreq);
 
     bodyOmega = juce::MathConstants<float>::twoPi * bodyFreqClamped / (float) sampleRate;
     bodyOmegaBase = bodyOmega;
     bodyDecayCoeff = std::exp (-1.0f / juce::jmax (1.0f, decayMs * 0.001f * (float) sampleRate));
     bodyAttackCoeff = std::exp (-1.0f / juce::jmax (1.0f, attackMs * 0.001f * (float) sampleRate));
+
+    // REVIEW-TODO (Paket B): Gewunschter Parameter "bodyBandQ" (0.7..3.0,
+    //   Default 1.4) - die Bandbreite des Shell-Bandes ist hier fest.
+    // Shell-Resonator: 2-poliger RBJ-Bandpass (Q = 1.4, 0 dB Peak-Gain).
+    // -3-dB-Bandbreite = bodyFreq / Q (bei 92,5 Hz => 66 Hz => 66..119 Hz).
+    const float w0 = juce::MathConstants<float>::twoPi * bodyFreqClamped / (float) sampleRate;
+    constexpr float bodyBandpassQ = 1.4f;
+    const float alpha = std::sin (w0) / (2.0f * bodyBandpassQ);
+    const float a0 = 1.0f + alpha;
+
+    bodyBpB0 = alpha / a0;
+    bodyBpB1 = 0.0f;
+    bodyBpB2 = -alpha / a0;
+    bodyBpA1 = -2.0f * std::cos (w0) / a0;
+    bodyBpA2 = (1.0f - alpha) / a0;
 }
 
 //==============================================================================
@@ -507,42 +543,90 @@ void KickSynthesisEngine::updateEQ (float rumbleHP, float subFreq, float subGain
 
     // Ranges (SND-082): Rumble 15..120, Sub 20..200, Punch 500..8000 Hz.
     eqRumbleCoeff = coeff (juce::jlimit (15.0f, 120.0f, rumbleHP));
-
-    // Sub-Band trackt die Grundfrequenz (SND-073); der Regler gilt nur bei
-    // abgeschaltetem Tracking.
-    const float subTarget = eqSubTrack ? fundamentalHz : subFreq;
-    eqSubCoeff = coeff (juce::jlimit (20.0f, 200.0f, subTarget));
     eqAirCoeff = coeff (airFreq);
+
+    // ---- B1: Sub-Band = RBJ-Low-Shelf (Slope S = 1.0, Q0 = 1/sqrt(2)) ----
+    // Der Shelf laeuft DIREKT auf x0 (kein paralleles Band, keine
+    // Phasendrehung, kein Makeup). Damit ist der Regler ehrlich:
+    // +3 dB auf f0 => +3 dB am Fundamental, 0 dB => bit-transparent.
+    //
+    // RBJ-Koeffizienten (Audio EQ Cookbook, "Low Shelf"):
+    //   A     = 10^(G_dc/40),  alpha = sin(w0)/2 * sqrt((A + 1/A)*(1/S - 1) + 2)
+    //   fuer S = 1:  alpha = sin(w0)/sqrt(2) = sin(w0)/(2*Q0), Q0 = 0.7071
+    //   (G_dc = asymptotischer Gain = 2 * eqSubGain, siehe unten)
+    //   b0 =  A*((A+1) - (A-1)*cos(w0) + 2*sqrt(A)*alpha)
+    //   b1 =  2*A*((A-1) - (A+1)*cos(w0))
+    //   b2 =  A*((A+1) - (A-1)*cos(w0) - 2*sqrt(A)*alpha)
+    //   a0 =  (A+1) + (A-1)*cos(w0) + 2*sqrt(A)*alpha
+    //   a1 = -2*((A-1) + (A+1)*cos(w0))
+    //   a2 =  (A+1) + (A-1)*cos(w0) - 2*sqrt(A)*alpha
+    //
+    // Transparenz-Beweis (G = 0 dB => A = 1):
+    //   b0 = 2 + 2*alpha        a0 = 2 + 2*alpha   -> b0 = a0
+    //   b1 = -4*cos(w0)              a1 = -4*cos(w0)    -> b1 = a1
+    //   b2 = 2 - 2*alpha        a2 = 2 - 2*alpha   -> b2 = a2
+    // Nach der Normalisierung (a0) ist der Filter damit exakt die Identitaet
+    // (H(z) = (b0 + b1 z^-1 + b2 z^-2)/(a0 + a1 z^-1 + a2 z^-2) = 1).
+    //
+    // REVIEW-TODO (Paket B): Gewunschter Parameter "eqSubMode"
+    //   (0 = Low-Shelf wie hier, 1 = Bell/Peak bei f0). Der Shelf erfuellt die
+    //   Forderung "+3 dB => +3 dB am Fundamental" nur, indem sein asymptotischer
+    //   Gain auf 2*eqSubGain gesetzt wird (Sub-Oktave dann +5,8 dB bei +3 dB
+    //   Einstellung). Mit einem Bell-Filter waere der Gain genau bei f0 = der
+    //   Einstellung und die Sub-Oktave unberuehrt.
+    // Gain-Abbildung: Der RBJ-Low-Shelf liefert am Eckpunkt f0 per Konstruktion
+    // die Haelfte des asymptotischen Gains (klassische Analog-Shelf-Kurve,
+    // unabhaengig von S). Damit der Regler an f0 ehrlich ist, wird der
+    // asymptotische Gain auf 2*eqSubGain gesetzt: bei f0 ergibt sich exakt
+    // eqSubGain dB (+3 dB => +3,00 dB am Fundamental, +/-0,01 dB), unterhalb
+    // von f0 waechst der Gain sanft bis zum Doppelten (Sub-Oktave).
+    const float subTarget = eqSubTrack ? fundamentalHz : subFreq;
+    const float shelfHz = juce::jlimit (20.0f, 200.0f, subTarget);
+    const float shelfGainDb = juce::jlimit (-12.0f, 12.0f, subGain);
+    const float A = std::pow (10.0f, shelfGainDb / 20.0f);
+    const float w0 = juce::MathConstants<float>::twoPi
+                   * juce::jlimit (20.0f, 0.45f * (float) sampleRate, shelfHz)
+                   / (float) sampleRate;
+    const float cosW0 = std::cos (w0);
+    const float sinW0 = std::sin (w0);
+    const float alpha = sinW0 * 0.70710678f; // S = 1.0  =>  Q0 = 1/sqrt(2)
+    const float twoSqrtAAlpha = 2.0f * std::sqrt (A) * alpha;
+
+    const float b0 = A * ((A + 1.0f) - (A - 1.0f) * cosW0 + twoSqrtAAlpha);
+    const float b1 = 2.0f * A * ((A - 1.0f) - (A + 1.0f) * cosW0);
+    const float b2 = A * ((A + 1.0f) - (A - 1.0f) * cosW0 - twoSqrtAAlpha);
+    const float a0 = (A + 1.0f) + (A - 1.0f) * cosW0 + twoSqrtAAlpha;
+    const float a1 = -2.0f * ((A - 1.0f) + (A + 1.0f) * cosW0);
+    const float a2 = (A + 1.0f) + (A - 1.0f) * cosW0 - twoSqrtAAlpha;
+
+    eqShelfB0 = b0 / a0;
+    eqShelfB1 = b1 / a0;
+    eqShelfB2 = b2 / a0;
+    eqShelfA1 = a1 / a0;
+    eqShelfA2 = a2 / a0;
 
     // Punch-Band als Biquad-Peak (BPF, 0 dB Peak-Gain, Q 1.0 = 0.7..1.2,
     // SND-080): RBJ-Koeffizienten einmal pro Block.
     const float punchHz = juce::jlimit (500.0f, 8000.0f, punchFreq);
-    const float w0 = 2.0f * (float) juce::MathConstants<float>::pi
-                   * juce::jlimit (20.0f, 0.45f * (float) sampleRate, punchHz)
-                   / (float) sampleRate;
+    const float punchW0 = 2.0f * (float) juce::MathConstants<float>::pi
+                        * juce::jlimit (20.0f, 0.45f * (float) sampleRate, punchHz)
+                        / (float) sampleRate;
     const float punchQ = 1.0f;
-    const float alpha = std::sin (w0) / (2.0f * punchQ);
-    const float a0 = 1.0f + alpha;
+    const float punchAlpha = std::sin (punchW0) / (2.0f * punchQ);
+    const float punchA0 = 1.0f + punchAlpha;
 
-    eqPunchB0 = alpha / a0;
+    eqPunchB0 = punchAlpha / punchA0;
     eqPunchB1 = 0.0f;
-    eqPunchB2 = -alpha / a0;
-    eqPunchA1 = -2.0f * std::cos (w0) / a0;
-    eqPunchA2 = (1.0f - alpha) / a0;
+    eqPunchB2 = -punchAlpha / punchA0;
+    eqPunchA1 = -2.0f * std::cos (punchW0) / punchA0;
+    eqPunchA2 = (1.0f - punchAlpha) / punchA0;
 
-    // Bänder werden parallel summiert; der Linear-Anteil ist der Boost über 1.
-    // Clamp verhindert Phasen-/Pegel-Entgleisungen bei extremen Reglerstellungen
-    // (eq<gain> ist auf -12..+12 dB begrenzt -> -0.75..+2.98 linear).
-    eqSubGainLin   = juce::jlimit (-0.9f, 3.0f, juce::Decibels::decibelsToGain (subGain)   - 1.0f);
+    // Punch-/Air-Baender bleiben additive Baesse (unveraendert, ohne Makeup):
+    // der Linear-Anteil ist der Boost ueber 1. Clamp verhindert
+    // Pegel-Entgleisungen bei extremen Reglerstellungen (eq<gain> ist auf
+    // -12..+12 dB begrenzt -> -0.75..+2.98 linear).
     eqPunchGainLin = juce::jlimit (-0.9f, 3.0f, juce::Decibels::decibelsToGain (punchGain) - 1.0f);
     eqAirGainLin   = juce::jlimit (-0.9f, 3.0f, juce::Decibels::decibelsToGain (airGain)   - 1.0f);
-
-    // Makeup (SND-079): Summe der Boosts wird gegennormiert, Cut-only bleibt
-    // bei 1. Clamp nach unten, damit extreme Boosts nicht alles wegdrücken.
-    const float boostSum = juce::jmax (0.0f, eqSubGainLin)
-                         + juce::jmax (0.0f, eqPunchGainLin)
-                         + juce::jmax (0.0f, eqAirGainLin);
-    eqMakeupNorm = juce::jlimit (0.25f, 1.0f, 1.0f / (1.0f + boostSum));
 }
 
 float KickSynthesisEngine::processEQSample (float x)
@@ -555,14 +639,8 @@ float KickSynthesisEngine::processEQSample (float x)
     eqHighpassState = rumbleLp;
     const float x0 = x - rumbleLp;
 
-    // Jedes Band wird aus demselben HP-Signal berechnet und danach summiert
-    // (y = x0 + sub + punch + air). Kein kaskadiertes Aufsummieren mehr, das
-    // geboostete Bänder in die nächste Stufe einspeist.
-    // Sub: zwei kaskadierte One-Poles = 12 dB/oct (SND-081).
-    eqSubState1 += (1.0f - eqSubCoeff) * (x0 - eqSubState1);
-    eqSubState2 += (1.0f - eqSubCoeff) * (eqSubState1 - eqSubState2);
-    const float subBand = eqSubState2;
-
+    // B1: Der Low-Shelf laeuft DIREKT auf x0 (kein paralleles Sub-Band).
+    // Gain 0 dB => b0 = a0, b1 = a1, b2 = a2 => bit-transparent.
     // Punch: Biquad-Peak (Direct Form I).
     const float punchBand = eqPunchB0 * x0 + eqPunchB1 * eqPunchX1 + eqPunchB2 * eqPunchX2
                           - eqPunchA1 * eqPunchY1 - eqPunchA2 * eqPunchY2;
@@ -574,19 +652,28 @@ float KickSynthesisEngine::processEQSample (float x)
     eqHighShelfState += (1.0f - eqAirCoeff) * (x0 - eqHighShelfState);
     const float airBand = x0 - eqHighShelfState;
 
-    // Wichtig: die Makeup-Normierung darf NUR die Boost-Summe skalieren, nicht
-    // das Dry-Signal. Sonst wirkt der Sub-Boost als breitbandiger Cut
-    // (-4,1 dB, am Grundton -4,7 dB) und der Kick verliert genau die Tiefe,
-    // die der Regler zufuegen soll.
-    float y = x0 + eqMakeupNorm * (eqSubGainLin * subBand
-                                   + eqPunchGainLin * punchBand
-                                   + eqAirGainLin * airBand);
+    // Low-Shelf (Direct Form I) auf dem Direktsignal.
+    const float shelfBand = eqShelfB0 * x0 + eqShelfB1 * eqShelfX1 + eqShelfB2 * eqShelfX2
+                          - eqShelfA1 * eqShelfY1 - eqShelfA2 * eqShelfY2;
+    eqShelfX2 = eqShelfX1;
+    eqShelfX1 = x0;
+    eqShelfY2 = eqShelfY1;
+    eqShelfY1 = shelfBand;
+
+    // y = Shelf(x0) + Punch + Air. Kein Makeup: der Shelf arbeitet
+    // phasentreu auf dem Direktsignal, Punch/Air sind additive Baesse und
+    // wirken energieerhoehend (eine Kompensation waere hier nicht noetig,
+    // weil der Shelf das Nutzsignal nicht anhebt, sondern nur die Tiefen
+    // anhebt - die additiven Baender heben den Gesamtpegel an).
+    float y = shelfBand + eqPunchGainLin * punchBand + eqAirGainLin * airBand;
 
     if (! std::isfinite (y))
     {
         // Ein NaN/Inf darf die Filterzustände nicht dauerhaft vergiften.
-        eqSubState1 = 0.0f;
-        eqSubState2 = 0.0f;
+        eqShelfX1 = 0.0f;
+        eqShelfX2 = 0.0f;
+        eqShelfY1 = 0.0f;
+        eqShelfY2 = 0.0f;
         eqPunchX1 = 0.0f;
         eqPunchX2 = 0.0f;
         eqPunchY1 = 0.0f;
@@ -681,10 +768,10 @@ float KickSynthesisEngine::processSub (float subLevel, int subShape)
     return s * subEnv * subLevel;
 }
 
-float KickSynthesisEngine::processBody (float bodyLevel, float pitchRatio)
+float KickSynthesisEngine::processBody (float bodyLevel, float bodyRatio)
 {
-    // Eigener abklingender Sinus (Body-Resonator). Bewusst NICHT die bereits
-    // abklingende Membran skalieren: eigener Oszillator, eigene Hüllkurve.
+    // Eigener Resonator (Body). Bewusst NICHT die bereits abklingende Membran
+    // skalieren: eigener Oszillator, eigene Hüllkurve.
     if (bodyInAttack)
     {
         bodyEnv += (bodyPeak - bodyEnv) * bodyAttackCoeff;
@@ -706,8 +793,10 @@ float KickSynthesisEngine::processBody (float bodyLevel, float pitchRatio)
         return 0.0f;
     }
 
-    // Pitch-Anteil der Body-Resonanz (SND-048): 0.4x der Pitch-Envelope.
-    bodyPhase += bodyOmega * juce::jlimit (0.5f, 2.0f, pitchRatio);
+    // B4: Der Body gleitet mit 0.4x der Pitch-Envelope:
+    // bodyRatio = 1 + 0.4*(pitchRatio - 1). Verwendet wird ausschliesslich
+    // der Multiplikator pitchRatio (kein getEnvelopeValue()).
+    bodyPhase += bodyOmega * juce::jlimit (0.5f, 2.0f, bodyRatio);
 
     if (bodyPhase >= juce::MathConstants<float>::twoPi)
         bodyPhase -= juce::MathConstants<float>::twoPi;
@@ -722,7 +811,23 @@ float KickSynthesisEngine::processBody (float bodyLevel, float pitchRatio)
         return 0.0f;
     }
 
-    return s * bodyEnv * bodyLevel;
+    // Anregung des Shell-Resonators (Oszillator ohne Hüllkurve: die
+    // Hüllkurve wird erst auf den Resonator-Ausgang gelegt, damit die
+    // Gruppenlaufzeit des Bandpasses (~1/(pi*BW) = 4,8 ms bei 92,5 Hz)
+    // den Attack nicht verspätet).
+    const float exciter = s;
+
+    // 2-poliger RBJ-Bandpass (Q = 1.4, 0 dB Peak-Gain) bei bodyFreq.
+    const float shell = bodyBpB0 * exciter + bodyBpB1 * bodyBpX1 + bodyBpB2 * bodyBpX2
+                      - bodyBpA1 * bodyBpY1 - bodyBpA2 * bodyBpY2;
+    bodyBpX2 = bodyBpX1;
+    bodyBpX1 = exciter;
+    bodyBpY2 = bodyBpY1;
+    bodyBpY1 = shell;
+
+    // 75 % Resonator + 25 % Sinus auf bodyFreq: der Sinus-Anteil verhindert,
+    // dass der Body bei tiefem bodyTuning (schmales Band) zu duenn wird.
+    return (0.75f * shell + 0.25f * exciter) * bodyEnv * bodyLevel;
 }
 
 
@@ -764,50 +869,66 @@ float KickSynthesisEngine::processDrive (float x, float amount, float mix, int c
 
         const float drive = 1.0f + amount * 8.0f;
 
-        // Normierung 1/tanh(k): kein Pegelverlust beim Sättigen (SND-011).
-        // Bei Character 1/2 ist die wirksame Steilheit höher; die Normierung
-        // folgt dem jeweiligen Ceiling.
-        if (amount != driveCachedAmount || character != driveCachedCharacter)
-        {
-            const float k = (character == 2) ? drive * 2.0f
-                          : (character == 1) ? drive * 1.2f
-                                             : drive;
-            driveNormCache = 1.0f / std::tanh (k);
-            driveCachedAmount = amount;
-            driveCachedCharacter = character;
-        }
+        // ---- B2: Slope-1-Normierung (Kleinsignalverstaerkung = 1.0) ----
+        // Vorher: tanh(k*x) * 1/tanh(k)  ->  Steigung k im Ursprung
+        //         (bei amount 0,4 => k = 4,2 => +12,5 dB Kleinsignal).
+        // Jetzt:  tanh(k*x) / k           ->  Steigung 1 im Ursprung.
+        // Alle fuenf Charaktere (Tube/Diode/Fuzz, WaveFold, Alias) werden so
+        // normiert, dass ein sehr kleines Eingangssignal unveraendert
+        // durchgeht. Der Drive faerbt damit, statt zu verstaerken.
+        const float kTube     = drive;                  // Character 0
+        const float kDiodePos = drive * 0.8f;            // Character 1 (asymmetrisch)
+        const float kDiodeNeg = drive * 1.2f;
+        const float kFuzz     = drive * 2.0f;            // Character 2 (Fuzz)
+        const float kFold     = 1.0f + amount * 4.0f;   // Character 3 (WaveFold)
+        const float aliasSteps   = 1.0f + amount * 15.0f; ///< Character 4 (Alias)
+        const float aliasPreGain = 4.0f;
+        const float aliasStep = 1.0f / (aliasPreGain * aliasSteps); // Rasterweite
 
-        const float norm = driveNormCache;
-
-        auto saturate = [drive, norm, character, amount] (float s) -> float
+        auto saturate = [kTube, kDiodePos, kDiodeNeg, kFuzz, kFold,
+                         aliasStep, character] (float s) -> float
         {
             switch (character)
             {
                 case 0: // Tube
-                    return std::tanh (s * drive) * norm;
+                    return std::tanh (s * kTube) / kTube;
 
-                case 1: // Diode (asymmetrisch)
-                    return ((s > 0.0f) ? std::tanh (s * drive * 0.8f)
-                                      : std::tanh (s * drive * 1.2f)) * norm;
+                case 1: // Diode (asymmetrisch, beide Aeste mit Steigung 1)
+                    return ((s > 0.0f) ? std::tanh (s * kDiodePos) / kDiodePos
+                                      : std::tanh (s * kDiodeNeg) / kDiodeNeg);
 
-                case 2: // Fuzz: härtere Kennlinie, gleiches Ceiling (SND-016)
-                    return std::tanh (s * drive * 2.0f) * norm;
+                case 2: // Fuzz: haertere Kennlinie, gleiche Steigung 1 (SND-016)
+                    return std::tanh (s * kFuzz) / kFuzz;
 
-                case 3: // Wave Fold: amplitudenunabhängige Schwelle (SND-017)
+                case 3: // Wave Fold: amplitudenunabhaengige Schwelle (SND-017)
                 {
-                    float y = s * (1.0f + amount * 4.0f);
-                    y = std::fmod (y + 1.0f, 4.0f);
+                    // Die Dreiecksfunktion T(u) hat im Ursprung die Steigung 1
+                    // und den Wertebereich [-1, 1]. Mit T(k*s)/k bleibt die
+                    // Steigung bezueglich s bei 1 (transparent fuer kleine
+                    // Signale); der Ausgangsbereich schrumpft auf 1/k.
+                    // REVIEW-TODO (Paket B): Gewunschter Parameter
+                    //   "driveMakeup" (0..+12 dB) - der WaveFold-Charakter ist
+                    //   bei hohem amount dadurch deutlich leiser (bei amount 1
+                    //   nur noch +-0,2 statt +-1,0 Ausgangsbereich).
+                    float y = std::fmod (s * kFold + 1.0f, 4.0f);
                     if (y < 0.0f)
                         y += 4.0f;
-                    return (y < 2.0f) ? (y - 1.0f) : (3.0f - y);
+                    const float triangle = (y < 2.0f) ? (y - 1.0f) : (3.0f - y);
+                    return triangle / kFold;
                 }
 
-                case 4: // Alias: Pre-Gain + Pegelkompensation (SND-018)
+                case 4: // Alias: Rasterquantisierung (SND-018)
                 {
-                    const float steps = 1.0f + amount * 15.0f;
-                    const float preGain = 4.0f;
-                    const float quantised = std::floor (s * preGain * steps + 0.5f) / steps;
-                    return quantised / preGain;
+                    // Quantisierung auf das Raster step. Unterhalb der halben
+                    // Rasterbreite bleibt das Signal unveraendert (Steigung 1),
+                    // darueber wird quantisiert. Die Ueberblendung (smoothstep)
+                    // vermeidet Spruenge am Schwellenpunkt.
+                    const float quantised = std::floor (s / aliasStep + 0.5f) * aliasStep;
+                    const float magnitude = std::abs (s);
+                    const float blend = juce::jlimit (0.0f, 1.0f,
+                        (magnitude - 0.5f * aliasStep) / (1.5f * aliasStep));
+                    const float w = blend * blend * (3.0f - 2.0f * blend);
+                    return s + w * (quantised - s);
                 }
 
                 default:
@@ -869,10 +990,21 @@ float KickSynthesisEngine::processDrive (float x, float amount, float mix, int c
 
 void KickSynthesisEngine::updateRoom (float level, float decayMs, float rumbleTone, float bpm)
 {
-    // 4-Tap-Set 61/79/97/113 ms (SND-091). Bei Sync-Modi wird das Set so
-    // skaliert, dass der letzte Tap genau eine Notendauer lang ist (SND-093).
-    static constexpr float baseTapMs[4] = { 61.0f, 79.0f, 97.0f, 113.0f };
+    // 4-Tap-Set 41/53/67/79 ms (B6): kuerzere, dichtere Taps => mehr "Raum",
+    // weniger "Echo", hoehere Nullstellenfrequenzen (weniger Sub-Wummern).
+    // Bei Sync-Modi wird das Set so skaliert, dass der letzte Tap genau eine
+    // Notendauer lang ist (SND-093).
+    static constexpr float baseTapMs[4] = { 41.0f, 53.0f, 67.0f, 79.0f };
     static constexpr float maxTapMs = 600.0f; // Delay-Line-Grenze (roomBufferSize)
+
+    // Tap-Gains auf Summe 1.0 normieren (B6). Vorher: 1.0/0.8/0.65/0.52
+    // (Summe 2.97) => der Room-Wet lag 9,4 dB ueber dem Send-Signal.
+    static constexpr float rawTapGain[4] = { 1.0f, 0.80f, 0.65f, 0.52f };
+    constexpr float tapGainSum = rawTapGain[0] + rawTapGain[1]
+                               + rawTapGain[2] + rawTapGain[3]; // 2.97
+
+    for (int t = 0; t < 4; ++t)
+        roomTapGain[(size_t) t] = rawTapGain[t] / tapGainSum;
 
     float tapScale = 1.0f;
 
@@ -923,6 +1055,29 @@ void KickSynthesisEngine::updateRoom (float level, float decayMs, float rumbleTo
     roomToneCoeff = std::exp (-juce::MathConstants<float>::twoPi
                               * juce::jlimit (10.0f, 0.45f * (float) sampleRate, toneHz)
                               / (float) sampleRate);
+
+    // ---- B6: Sub-Cut im Room-Send (2. Ordnung, 70 Hz) ----
+    // REVIEW-TODO (Paket B): Gewunschter Parameter "roomSubCutHz" (20..200 Hz,
+    //   Default 70) - die Sub-Cut-Frequenz ist hier fest verdrahtet.
+    // Ohne diesen Cut laufen vier verzögerte 46-Hz-Kopien in den Raum
+    // (Kammfilter-Nullen bei 27,8/55,6/83,3 Hz => "Wummern"). Der Dry-Pfad
+    // bleibt unangetastet; nur der Send wird beschnitten.
+    {
+        constexpr float roomSubCutHz = 70.0f;
+        constexpr float roomSubCutQ = 0.70710678f; // Butterworth
+        const float w0 = juce::MathConstants<float>::twoPi
+                       * juce::jlimit (20.0f, 0.45f * (float) sampleRate, roomSubCutHz)
+                       / (float) sampleRate;
+        const float cosW0 = std::cos (w0);
+        const float alpha = std::sin (w0) / (2.0f * roomSubCutQ);
+        const float a0 = 1.0f + alpha;
+
+        roomHpB0 = ((1.0f + cosW0) * 0.5f) / a0;
+        roomHpB1 = (-(1.0f + cosW0)) / a0;
+        roomHpB2 = ((1.0f + cosW0) * 0.5f) / a0;
+        roomHpA1 = (-2.0f * cosW0) / a0;
+        roomHpA2 = (1.0f - alpha) / a0;
+    }
 }
 
 StereoMix KickSynthesisEngine::processRoomRumble (const StereoMix& in)
@@ -953,6 +1108,27 @@ StereoMix KickSynthesisEngine::processRoomRumble (const StereoMix& in)
 
         sendL = roomToneHpYPrevL;
         sendR = roomToneHpYPrevR;
+    }
+
+    // B6: Sub-Cut (2. Ordnung, 70 Hz) direkt auf dem Send-Signal. Der
+    // Grundton (46 Hz) darf nicht in den Raum laufen, sonst hoert man vier
+    // verzögerte Tief-Kopien (Kammfilter-Nullen, "Wummern").
+    {
+        const float hpL = roomHpB0 * sendL + roomHpB1 * roomHpX1L + roomHpB2 * roomHpX2L
+                        - roomHpA1 * roomHpY1L - roomHpA2 * roomHpY2L;
+        roomHpX2L = roomHpX1L;
+        roomHpX1L = sendL;
+        roomHpY2L = roomHpY1L;
+        roomHpY1L = std::isfinite (hpL) ? hpL : 0.0f;
+        sendL = roomHpY1L;
+
+        const float hpR = roomHpB0 * sendR + roomHpB1 * roomHpX1R + roomHpB2 * roomHpX2R
+                        - roomHpA1 * roomHpY1R - roomHpA2 * roomHpY2R;
+        roomHpX2R = roomHpX1R;
+        roomHpX1R = sendR;
+        roomHpY2R = roomHpY1R;
+        roomHpY1R = std::isfinite (hpR) ? hpR : 0.0f;
+        sendR = roomHpY1R;
     }
 
     // Taps lesen (vor dem Schreiben): 4 Taps pro Kanal, per-Tap-Gain.
@@ -1019,6 +1195,29 @@ StereoMix KickSynthesisEngine::processRoomRumble (const StereoMix& in)
     return { tapL * roomSendGain, tapR * roomSendGain };
 }
 //==============================================================================
+namespace
+{
+/** Kubische Hermite-Interpolation auf dem Intervall [p1, p2] (B7).
+
+    Tangenten:  m1 = (p2 - p0)/2      (zentrale Differenz an p1)
+                m2 = 2*p2 - 3*p1 + p0 (zweite Differenz an p2)
+   Fuer ein lineares Signal geht die Kurve in die lineare Interpolation
+    ueber, fuer ein sinusfoermiges Signal ist sie zweite Ordnung genau.
+    t = 0 liefert p1, t = 1 liefert p2. */
+inline float hermiteInterp (float p1, float p2,
+                             float m1, float m2, float t) noexcept
+{
+    const float t2 = t * t;
+    const float t3 = t2 * t;
+    const float h00 =  2.0f * t3 - 3.0f * t2 + 1.0f;
+    const float h10 =        t3 - 2.0f * t2 + t;
+    const float h01 = -2.0f * t3 + 3.0f * t2;
+    const float h11 =        t3 -       t2;
+    return h00 * p1 + h10 * m1 + h01 * p2 + h11 * m2;
+}
+} // namespace
+
+//==============================================================================
 void KickSynthesisEngine::processOutputStage (float& l, float& r, float gainDb,
                                               float panL, float panR)
 {
@@ -1050,14 +1249,19 @@ void KickSynthesisEngine::processOutputStage (float& l, float& r, float gainDb,
         r = mid - highSide * outputWidthValue;
     }
 
-    // Soft-Clip vor Pan/Limiter (SND-007). Normiert auf Ceiling 1.0 (SND-001).
+    // Soft-Clip vor Pan/Limiter (SND-007).
+    // B3: Slope-1-Softclipper  y = x / sqrt(1 + (x/ceiling)^2)
+    //   -> Kleinsignalverstaerkung exakt 1.0, Asymptote +-ceiling, stetig.
+    //   "outputClip" steuert NUR das Ceiling (1.0 - 0.5*clip); es gibt
+    //   keinen parameterabhaengigen Gain mehr (vorher: +7,7 dB Makeup).
     // SND-179: bei "oversampleEnabled" 2x Halfband-FIR (31 Taps) je Kanal,
     // sonst direkte Auswertung. Die FIR-Latenz (15 Samples) ist L/R-identisch.
     if (clipActive)
     {
         auto softClip = [this] (float x) -> float
         {
-            return std::tanh (x * clipDrive) * clipNorm;
+            const float t = x / clipCeiling;
+            return x / std::sqrt (1.0f + t * t);
         };
 
         auto processClip = [&softClip] (float x, StreamingTwoX& up, StreamingTwoX& down,
@@ -1076,22 +1280,69 @@ void KickSynthesisEngine::processOutputStage (float& l, float& r, float gainDb,
         l = processClip (l, clipUp[0], clipDown[0], oversampleEnabled);
         r = processClip (r, clipUp[1], clipDown[1], oversampleEnabled);
 
-        // SND-006/020: Clip-GR = größte Betragsdämpfung dieses Blocks.
-        // (Kleine Signale werden durch die tanh-Normierung verstärkt;
-        // nur echte Dämpfung zählt.)
-        auto gainRatio = [] (float in, float out)
+        // SND-006/020: Clip-GR = 1 - |y|/|x| (in dB: -20*log10(|y|/|x|)),
+        // clipMinGain = Minimum der Gain-Reduktion im Block.
+        // Der Slope-1-Clipper ist deterministisch: |y|/|x| = 1/sqrt(1+(x/C)^2).
+        // Der Gain-Faktor ist monoton fallend - das Block-Minimum entspricht
+        // damit dem groessten |x| im Block. Die Auswertung der Kennlinie ist
+        // exakt die vom Clipper erzeugte Daempfung und frei von Latenz- und
+        // Transient-Artefakten des 2x-Halfband-Pfades (15 Samples Latenz).
+        auto gainRatio = [this] (float in)
         {
             const float magnitude = std::abs (in);
-            return (magnitude < 1.0e-4f) ? 1.0f : std::abs (out) / magnitude;
+
+            if (magnitude < 1.0e-4f)
+                return 1.0f;
+
+            const float t = magnitude / clipCeiling;
+            return 1.0f / std::sqrt (1.0f + t * t);
         };
 
         clipMinGain = juce::jmin (clipMinGain,
-                                  juce::jmin (gainRatio (inL, l), gainRatio (inR, r)));
+                                  juce::jmin (gainRatio (inL), gainRatio (inR)));
     }
 
+    // ---- B7: True-Peak-Detektor (4x interpoliert, stereo-linked) ----
+    // Das Intervall zwischen dem vorigen und dem aktuellen Sample wird mit
+    // einer kubischen Hermite-Interpolation verfeinert (t = 0.25/0.5/0.75),
+    // also 4 Punkte pro Sample. Damit werden Inter-Sample-Peaks erkannt,
+    // die ein reiner Sample-Peak-Detektor uebersieht (Club-Anlagen mit
+    // True-Peak-Limitern wuerden sonst doppelt limitieren).
+    // Hinweis: der Detektor kennt das Intervall erst beim Sample n (eine
+    // Sample Verzoegerung); der Peak-Hold (2 ms) haelt die Reduktion.
+    // REVIEW-TODO (Paket B): Gewunschter Parameter "limiterLookahead"
+    //   (0 = aus, 1 = 1 Sample Vorlauf). Ohne Vorlauf kann das erste Sample
+    //   eines Transients das Ceiling um den Interpollationsfehler ueberschreiten.
+    float truePeak = juce::jmax (std::abs (l), std::abs (r));
+
+    if (limiterHistoryValid)
+    {
+        const float m1L = 0.5f * (l - limiterPrev2L);
+        const float m2L = 2.0f * l - 3.0f * limiterPrevL + limiterPrev2L;
+        const float m1R = 0.5f * (r - limiterPrev2R);
+        const float m2R = 2.0f * r - 3.0f * limiterPrevR + limiterPrev2R;
+
+        for (int k = 1; k < 4; ++k)
+        {
+            const float t = (float) k * 0.25f;
+            truePeak = juce::jmax (truePeak, std::abs (
+                hermiteInterp (limiterPrevL, l, m1L, m2L, t)));
+            truePeak = juce::jmax (truePeak, std::abs (
+                hermiteInterp (limiterPrevR, r, m1R, m2R, t)));
+        }
+    }
+
+    limiterPrev2L = limiterPrevL;
+    limiterPrevL = l;
+    limiterPrev2R = limiterPrevR;
+    limiterPrevR = r;
+    limiterHistoryValid = true;
+
+    blockTruePeak = juce::jmax (blockTruePeak, truePeak);
+
     // Limiter: Peak-Hold-Envelope + Instant-Attack + Release.
-    // Stereo-linked über max(|L|,|R|) (SND-008).
-    const float peak = juce::jmax (std::abs (l), std::abs (r));
+    // Stereo-linked über max(|L|,|R|) (SND-008) - hier auf dem True-Peak.
+    const float peak = truePeak;
 
     if (! std::isfinite (peak))
     {
@@ -1178,6 +1429,10 @@ void KickSynthesisEngine::applyEnableTransitions (const ModuleEnableState& curre
         bodyEnv = 0.0f;
         bodyPeak = 0.0f;
         bodyInAttack = false;
+        bodyBpX1 = 0.0f;
+        bodyBpX2 = 0.0f;
+        bodyBpY1 = 0.0f;
+        bodyBpY2 = 0.0f;
     }
 
     if (rising (current.drive, previousEnableState.drive))
@@ -1186,8 +1441,6 @@ void KickSynthesisEngine::applyEnableTransitions (const ModuleEnableState& curre
         driveOutDcYPrev = 0.0f;
         driveHpLpState = 0.0f;
         driveLowLpState = 0.0f;
-            driveCachedAmount = -1.0f;
-        driveCachedCharacter = -1;
         driveUp.reset();
         driveDown.reset();
         driveLowDelay.fill (0.0f);
@@ -1196,8 +1449,10 @@ void KickSynthesisEngine::applyEnableTransitions (const ModuleEnableState& curre
 
     if (rising (current.eq, previousEnableState.eq))
     {
-        eqSubState1 = 0.0f;
-        eqSubState2 = 0.0f;
+        eqShelfX1 = 0.0f;
+        eqShelfX2 = 0.0f;
+        eqShelfY1 = 0.0f;
+        eqShelfY2 = 0.0f;
         eqPunchX1 = 0.0f;
         eqPunchX2 = 0.0f;
         eqPunchY1 = 0.0f;
@@ -1222,6 +1477,14 @@ void KickSynthesisEngine::applyEnableTransitions (const ModuleEnableState& curre
         roomFbYPrevL = 0.0f;
         roomFbXPrevR = 0.0f;
         roomFbYPrevR = 0.0f;
+        roomHpX1L = 0.0f;
+        roomHpX2L = 0.0f;
+        roomHpY1L = 0.0f;
+        roomHpY2L = 0.0f;
+        roomHpX1R = 0.0f;
+        roomHpX2R = 0.0f;
+        roomHpY1R = 0.0f;
+        roomHpY2R = 0.0f;
         std::fill (roomDelayL.begin(), roomDelayL.end(), 0.0f);
         std::fill (roomDelayR.begin(), roomDelayR.end(), 0.0f);
     }
@@ -1375,6 +1638,7 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
     const float pitchEnvCurve        = smoothing.getById (ParameterIDs::pitchEnvCurve);
 
     const float clickLevel           = smoothing.getById (ParameterIDs::clickLevel);
+    const float clickNoiseMix        = smoothing.getById (ParameterIDs::clickNoiseMix);
     const float clickDecay           = smoothing.getById (ParameterIDs::clickDecay);
     const float clickTone            = smoothing.getById (ParameterIDs::clickTone);
     const float clickDistortion      = smoothing.getById (ParameterIDs::clickDistortion);
@@ -1498,6 +1762,9 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
     // ---- Automatisches Layering ----
     // Kein eigener Regler ausser dem Ein/Aus: alle Layer-Werte werden aus den
     // bestehenden Modul-Parametern abgeleitet (Laenge/Attack/Decay/Pegel/
+    // M5: Rausch-/Tick-Anteil des Clicks (0 = reiner Tick, 1 = reines Rausch).
+    click.setNoiseMix (clickNoiseMix);
+
     // Dichte/Bandlage). Bool ungesmoothed, damit der Schalter nicht nachzieht.
     {
         const bool layeringOn = smoothing.getUnsmoothedById (ParameterIDs::layeringEnabled) > 0.5f;
@@ -1648,6 +1915,10 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
 
         driveDcCoeff = std::exp (-juce::MathConstants<float>::twoPi
                                  * 10.0f / (float) sampleRate);
+
+        // B7: Der Drive-Pfad bringt 15 Samples Latenz mit (2x-Halfband),
+        // aber nur wenn er tatsaechlich laeuft (Bypass = 0 Samples).
+        driveLatencyActive = driveEnabled && driveAmount > 0.0f && driveMix > 0.0f;
     }
 
     {
@@ -1678,28 +1949,28 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
     }
 
     {
-        // Limiter (SND-003): 0 = Bypass, 1 = -0.3 dB. Koeffizienten pro Block.
+        // B3: Soft-Clip mit Slope 1. "outputClip" steuert NUR das Ceiling
+        // (0 => 1.0 = praktisch transparent, 1 => 0.5 = -6 dB). Es gibt
+        // keinen parameterabhaengigen Gain mehr (vorher: tanh-Makeup mit
+        // +7,7 dB Kleinsignalverstaerkung bei outputClip 0.35).
+        const float clipAmt = juce::jlimit (0.0f, 1.0f, outputClip);
+        clipActive  = clipAmt > 0.0f;
+        clipCeiling = 1.0f - 0.5f * clipAmt;
+
+        // B3: Limiter-Ceiling 0..3 dB unter dem Clip-Ceiling. Der Limiter ist
+        // die letzte Instanz und muss auch dann greifen koennen, wenn der
+        // Clip bereits aktiv ist (vorher: identisches Ceiling, der Limiter
+        // war ein No-Op: -0,045 dB bei amount 0,15).
         const float limiterAmt = juce::jlimit (0.0f, 1.0f, outputLimiter);
-        limiterCeiling     = (limiterAmt <= 0.0f)
-                                 ? 1.0f
-                                 : juce::Decibels::decibelsToGain (-0.3f * limiterAmt);
+        limiterCeiling = clipCeiling * juce::Decibels::decibelsToGain (-3.0f * limiterAmt);
+
         limiterAttackCoeff = std::exp (-1.0f / juce::jmax (1.0f, 0.001f * (float) sampleRate));
         limiterReleaseCoeff = std::exp (-1.0f / juce::jmax (1.0f, 0.120f * (float) sampleRate));
         limiterPeakDecay   = std::exp (-1.0f / juce::jmax (1.0f, 0.002f * (float) sampleRate));
 
         limiterMinGain = 1.0f;
         drivePeak = 0.0f;
-    }
-
-    {
-        // Soft-Clip (SND-001): clipNorm = Ceiling / tanh(k), k = 1 + 4*clip.
-        // Das nominelle Clip-Ceiling wird auf das Limiter-Ceiling begrenzt
-        // (SND-010). Die tanh-Normierung lässt ~1/tanh(k) Rest-Overshoot
-        // (bei Default ~1.7 %), den der Limiter als letzte Instanz abfängt.
-        clipActive = outputClip > 0.0f;
-        clipDrive  = 1.0f + 4.0f * juce::jlimit (0.0f, 1.0f, outputClip);
-        clipCeiling = juce::jmin (1.0f, limiterCeiling);
-        clipNorm   = clipCeiling / std::tanh (clipDrive);
+        blockTruePeak = 0.0f;
 
         if (! clipActive)
         {
@@ -1710,7 +1981,10 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
             }
         }
 
-        jassert (clipCeiling <= limiterCeiling);
+        // Der Limiter ist die bindende Instanz: sein Ceiling liegt unter dem
+        // Clip-Ceiling (SND-010, invertiert: der Clip darf das Limiter-Ceiling
+        // nicht uebersteigen - deshalb begrenzt der Limiter zusaetzlich).
+        jassert (limiterCeiling <= clipCeiling);
     }
 
     // ---- Patch-Snapshot: EIN Lock, keine Allokation im Sample-Loop ----
@@ -1774,19 +2048,24 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
         }
 
         tunedFundamental = baseFundamentalHz * glideRatio;
-        subOmega = subOmegaBase * glideRatio;
-        subDt = subDtBase * glideRatio;
-        bodyOmega = bodyOmegaBase * glideRatio;
 
         // Pitch-Envelope läuft pro Sample, ausgeschaltet = kein Glide.
         const float pitchRatio = pitchEnvEnabled
             ? pitchEnv.process (pitchEnvAttack, pitchEnvDecay, pitchEnvDepth, pitchEnvCurve)
             : 1.0f;
 
-        // Body trackt die Pitch-Envelope zu 40 % (SND-028/048), Sub gar nicht.
-        const float bodyPitchRatio = 1.0f + 0.4f
-            * (pitchEnvEnabled ? pitchEnvDepth : 0.0f)
-            * (pitchEnvEnabled ? pitchEnv.getEnvelopeValue() : 0.0f);
+        // B4: Der Body gleitet mit 0.4x der Pitch-Env:
+        //       bodyRatio = 1 + 0.4*(pitchRatio - 1)
+        // B5: Der Sub gleitet mit 0.5x der Pitch-Env:
+        //       subRatioPitch = 1 + 0.5*(pitchRatio - 1)
+        // Ausgewertet wird ausschliesslich der Multiplikator pitchRatio
+        // (die Semantik von getEnvelopeValue() wird parallel geaendert).
+        const float bodyPitchRatio = 1.0f + 0.4f * (pitchRatio - 1.0f);
+        const float subPitchRatio  = 1.0f + 0.5f * (pitchRatio - 1.0f);
+
+        subOmega = subOmegaBase * glideRatio * subPitchRatio;
+        subDt = subDtBase * glideRatio * subPitchRatio;
+        bodyOmega = bodyOmegaBase * glideRatio;
 
         std::array<StereoMix, (int) Jack::JackCount> jacks {};
 
@@ -1902,6 +2181,20 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                     float subSample = subEnabled ? processSub (subLevel, subShape) : 0.0f;
                     subSample = mixer.processMono ((int) MixerStage::Channel::Sub, subSample);
                     subBusSample = subSample; // SND-174: Duck-Quelle (|Sub|)
+
+                    // SND-174 / Review M3: Der globale Duck wirkt jetzt NUR auf
+                    // die FX (Room/Higgs/Reverb/MaterialRoom) - nicht mehr auf
+                    // den trockenen Kick (vorher duckte sich der Kick selbst
+                    // und bekam eine Hoehle im eigenen Sustain).
+                    {
+                        const float duckSource = std::abs (membraneBusSample) + std::abs (subBusSample);
+                        const float duckTarget = juce::jlimit (0.0f, 1.0f, duckSource);
+                        duckEnv = (duckTarget > duckEnv)
+                            ? duckAttackCoeff * duckEnv + (1.0f - duckAttackCoeff) * duckTarget
+                            : duckReleaseCoeff * duckEnv + (1.0f - duckReleaseCoeff) * duckTarget;
+                        duckGainCurrent = juce::Decibels::decibelsToGain
+                            (-duckDepthDb * juce::jlimit (0.0f, 1.0f, duckEnv));
+                    }
                     jacks[(size_t) Jack::SubOut] = { subSample, subSample };
                     break;
                 }
@@ -1912,7 +2205,7 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                     float clickSample = clickEnabled
                         ? click.process (clickLevel, clickDecay, clickTone,
                                          clickDistortion, clickBeaterMaterial,
-                                         trackGlideRatio)
+                                         trackGlideRatio, pitchRatio)
                         : 0.0f;
 
                     if (! std::isfinite (clickSample))
@@ -1981,6 +2274,8 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                         ? processRoomRumble (inMix)
                         : StereoMix {};
                     applyFxWidth (fxWidthValue, roomWet.l, roomWet.r);
+                    roomWet.l *= duckGainCurrent;
+                    roomWet.r *= duckGainCurrent;
                     mixer.processStereo ((int) MixerStage::Channel::Room, roomWet.l, roomWet.r);
 
                     jacks[(size_t) Jack::RoomOut] = roomWet;
@@ -1997,7 +2292,8 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                     {
                         const auto mix = sumTo (Jack::HiggsIn);
                         const auto higgsResult = higgs.process (mix.l, mix.r);
-                        higgsOut = { higgsResult.first, higgsResult.second };
+                        higgsOut = { higgsResult.first * duckGainCurrent,
+                                     higgsResult.second * duckGainCurrent };
                     }
 
                     mixer.processStereo ((int) MixerStage::Channel::Higgs, higgsOut.l, higgsOut.r);
@@ -2013,6 +2309,8 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                         ? reverb.process (mix.l, mix.r)
                         : std::make_pair (0.0f, 0.0f);
                     applyFxWidth (fxWidthValue, revResult.first, revResult.second);
+                    revResult.first *= duckGainCurrent;
+                    revResult.second *= duckGainCurrent;
                     mixer.processStereo ((int) MixerStage::Channel::Reverb, revResult.first, revResult.second);
 
                     jacks[(size_t) Jack::ReverbOut] = { revResult.first, revResult.second };
@@ -2028,6 +2326,8 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                         ? materialRoom.process (kick.l, kick.r, rumble.l, rumble.r)
                         : std::make_pair (0.0f, 0.0f);
                     applyFxWidth (fxWidthValue, wet.first, wet.second);
+                    wet.first *= duckGainCurrent;
+                    wet.second *= duckGainCurrent;
                     mixer.processStereo ((int) MixerStage::Channel::MaterialRoom, wet.first, wet.second);
 
                     jacks[(size_t) Jack::MaterialRoomOut] = { wet.first, wet.second };
@@ -2043,22 +2343,9 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                     // Master-Kanal des Mixers (EQ + Trim) vor der Output-Stufe.
                     mixer.processStereo ((int) MixerStage::Channel::Output, outL, outR);
 
-                    // SND-174: internes Sidechain/Ducking. Quelle = das
-                    // getriggerte Kick/Sub-Signal (Membrane+Body+Sub-Sample
-                    // dieses Samples, Betrags-Follower mit ~2 ms Attack,
-                    // Release = "duckRelease"). Die Stufe sitzt am Eingang der
-                    // Output-Stufe (parallel zum Kompressor-Ausgang) und duckt
-                    // den kompletten Mix inkl. FX-Tails. duckDepth = 0 -> exakt 1.
-                    const float duckSource = std::abs (membraneBusSample) + std::abs (subBusSample);
-                    const float duckTarget = juce::jlimit (0.0f, 1.0f, duckSource);
-                    duckEnv = (duckTarget > duckEnv)
-                        ? duckAttackCoeff * duckEnv + (1.0f - duckAttackCoeff) * duckTarget
-                        : duckReleaseCoeff * duckEnv + (1.0f - duckReleaseCoeff) * duckTarget;
-                    const float duckGain = juce::Decibels::decibelsToGain
-                        (-duckDepthDb * juce::jlimit (0.0f, 1.0f, duckEnv));
-
-                    outL *= duckGain;
-                    outR *= duckGain;
+                    // SND-174 / Review M3: Das Ducking wird im Sub-Fall berechnet
+                    // und dort auf die FX-Ausgaenge angewendet - der trockene Kick
+                    // bleibt unberuehrt (kein Self-Ducking mehr).
 
                     processOutputStage (outL, outR, outGainCurrent, outPanLCurrent, outPanRCurrent);
 
@@ -2132,6 +2419,11 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
 
     clipGainReductionMaxDb = juce::jmax (clipGainReductionMaxDb, clipGainReductionDb);
 
+    // B7: True-Peak des Blocks in dBFS (4x interpoliert, stereo-linked).
+    truePeakDb = (blockTruePeak > 1.0e-6f)
+        ? 20.0f * std::log10 (blockTruePeak)
+        : -100.0f;
+
     // Sicherheitsnetz: Events mit Offset außerhalb des Blocks (sollte nicht
     // vorkommen) gehen nicht verloren, sondern feuern am Blockende.
     if (triggerCount > 0)
@@ -2139,6 +2431,26 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
 
     // Der Block-Snapshot gilt nur für diesen Render-Aufruf.
     parameterModulationPrepared = false;
+}
+
+//==============================================================================
+int KickSynthesisEngine::getLatencyInSamples() const
+{
+    // B7: Latenz des Signalpfades. Ohne "oversampleEnabled" ist der Pfad
+    // sample-genau. Mit Oversampling kommen zwei 2x-Halfband-Pfade hintereinander
+    // (Drive 15 Samples, Clip 15 Samples) => 30 Samples bei Basis-Samplerate.
+    if (! oversampleEnabled)
+        return 0;
+
+    int latency = 0;
+
+    if (driveLatencyActive)
+        latency += StreamingTwoX::totalLatencySamples;
+
+    if (clipActive)
+        latency += StreamingTwoX::totalLatencySamples;
+
+    return latency;
 }
 
 //==============================================================================

@@ -354,6 +354,31 @@ void PatchView::paint (juce::Graphics& g)
         return;
     }
 
+    // H6 (Review 2026-11-13): Ohne Eingangsverbindung am Output-Jack bleibt der
+    // Kick stumm - im Eurorack ist das normal, hier aber eine stille Falle.
+    {
+        const auto conns = patch.getConnections();
+        bool hasOutputPath = false;
+
+        for (const auto& connection : conns)
+            if (connection.to == Jack::OutputIn)
+            {
+                hasOutputPath = true;
+                break;
+            }
+
+        if (! hasOutputPath)
+        {
+            auto bar = getLocalBounds().removeFromTop (22).toFloat().reduced (panelPadding, 1.0f);
+            g.setColour (juce::Colour (0xff5a1414));
+            g.fillRect (bar);
+            g.setColour (juce::Colours::white);
+            g.setFont (juce::FontOptions (11.0f));
+            g.drawText ("NO PATH TO OUTPUT  -  der Kick bleibt stumm (am Output-Jack liegt keine Eingangsverbindung)",
+                        bar, juce::Justification::centredLeft);
+        }
+    }
+
     // Module
     for (int m = 0; m < (int) ModuleIndex::ModuleCount; ++m)
         drawModule (g, (ModuleIndex) m);

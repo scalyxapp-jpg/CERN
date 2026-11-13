@@ -13,12 +13,12 @@
 #include "TubeResonator.h"
 #include "SoftKneeCompressor.h"
 #include "TransientShaper.h"
-#include "OversamplingHelper.h"
 #include "MaterialReverb.h"
 #include "MaterialRoom.h"
 #include "MixerStage.h"
 #include "LayeringStage.h"
 #include "HiggsFieldEngine.h"
+#include "OversamplingHelper.h"
 #include "PatchGraph.h"
 #include "ParameterPatchGraph.h"
 #include "Parameters/ParameterSmoothing.h"
@@ -73,6 +73,17 @@ public:
 
     /** Limiter-Gain-Reduction des letzten Blocks in dB (0 = keine Regelung). */
     float getLimiterGainReductionDb() const { return limiterGainReductionDb; }
+
+    /** True-Peak des letzten Blocks in dBFS (4x interpoliert, B7). */
+    float getTruePeakDb() const { return truePeakDb; }
+
+    /** Latenz des Signalpfades in Samples (B7).
+
+        Ohne Oversampling: 0. Mit "oversampleEnabled": 15 Samples fuer den
+        Drive-Pfad (StreamingTwoX) plus 15 Samples fuer den Clip-Pfad
+        (beide seriell) = 30 Samples. Der Wert wird vom PluginProcessor an
+        den Host gemeldet (setLatencySamples). */
+    int getLatencyInSamples() const;
 
     /** Limiter-GR-Maximum seit prepare()/reset() in dB (SND-006). */
     float getLimiterGainReductionMaxDb() const { return limiterGainReductionMaxDb; }
@@ -264,7 +275,7 @@ private:
 
     void startPitchGlide (float targetSemitones);
 
-    // ---- Body-Resonator (eigener abklingender Sinus, nicht die Membran) ----
+    // ---- Body-Resonator (2-poliger Shell-Bandpass + Sinus-Anteil) ----
     float bodyPhase { 0.0f };
     float bodyEnv { 0.0f };         ///< Amplitude des Body-Oszillators
     float bodyAttackCoeff { 0.0f }; ///< Block-Konstante (Attack)
@@ -273,6 +284,11 @@ private:
     float bodyOmegaBase { 0.0f };   ///< Grundwert bei Pitch-Faktor 1.0
     float bodyPeak { 0.0f };        ///< Zielamplitude des laufenden Triggers
     bool  bodyInAttack { false };
+    /** RBJ-Bandpass (Q = 1.4) als Shell-Resonator (B4). */
+    float bodyBpB0 { 0.0f }, bodyBpB1 { 0.0f }, bodyBpB2 { 0.0f };
+    float bodyBpA1 { 0.0f }, bodyBpA2 { 0.0f };
+    float bodyBpX1 { 0.0f }, bodyBpX2 { 0.0f };
+    float bodyBpY1 { 0.0f }, bodyBpY2 { 0.0f };
 
     // ---- Room / late rumble (4-Tap-Netzwerk, SND-091..100) ----
     std::vector<float> roomDelayL, roomDelayR; ///< in prepare() dimensioniert (keine Allokation im Render)
@@ -280,7 +296,7 @@ private:
     int roomPos { 0 };
     std::array<int, 4> roomTapSamplesL { { 1, 1, 1, 1 } };
     std::array<int, 4> roomTapSamplesR { { 1, 1, 1, 1 } };
-    std::array<float, 4> roomTapGain { { 1.0f, 0.80f, 0.65f, 0.52f } }; ///< per-Tap-Gain (SND-091)
+    std::array<float, 4> roomTapGain { { 0.3367f, 0.2694f, 0.2189f, 0.1751f } }; ///< pro-Tap-Gain, Summe 1.0 (B6)
     float roomSendGain { 0.0f };   ///< sqrt(roomLevel) (SND-092/097)
     float roomFeedback { 0.0f };   ///< Block-Konstante (aus roomDecay + Tap-Abstand)
     float roomDcCoeff { 0.9995f }; ///< 2-Hz-DC-Blocker (SND-099)
@@ -292,6 +308,13 @@ private:
     float roomFbXPrevL { 0.0f }, roomFbYPrevL { 0.0f }; ///< DC-Blocker im Feedback L
     float roomFbXPrevR { 0.0f }, roomFbYPrevR { 0.0f }; ///< DC-Blocker im Feedback R
     RoomSync roomSync { RoomSync::free };
+    /** Sub-Cut im Send: 2-poliger Highpass (RBJ, Q = 0.707) bei 70 Hz (B6). */
+    float roomHpB0 { 1.0f }, roomHpB1 { -2.0f }, roomHpB2 { 1.0f };
+    float roomHpA1 { 0.0f }, roomHpA2 { 0.0f };
+    float roomHpX1L { 0.0f }, roomHpX2L { 0.0f };
+    float roomHpY1L { 0.0f }, roomHpY2L { 0.0f };
+    float roomHpX1R { 0.0f }, roomHpX2R { 0.0f };
+    float roomHpY1R { 0.0f }, roomHpY2R { 0.0f };
 
     // ---- Drive (Band-Split: Low clean, High gesättigt; DC nur im Wet-Zweig) ----
     float driveOutDcXPrev { 0.0f };
@@ -302,31 +325,30 @@ private:
     float driveSplitCoeff { 0.0f };   ///< Block-Konstante (150 Hz Crossover)
     float driveDcCoeff { 0.0f };      ///< Block-Konstante (~10 Hz DC-Blocker)
     bool  drivePreHpActive { false };
-    float driveCachedAmount { -1.0f };
-    int   driveCachedCharacter { -1 };
-    float driveNormCache { 1.0f };    ///< 1/tanh(k) je Character (SND-011)
     float drivePeak { 0.0f };
     float driveOutputLevelDb { -100.0f };
+    bool  driveLatencyActive { false }; ///< Drive-Pfad laeuft (Oversampling -> 15 Samples Latenz)
 
     // ---- Tube ----
     bool tubeTracking { true };
 
-    // ---- EQ (Sub 12 dB/oct, Punch als Biquad-Peak, Air; parallel + Makeup) ----
-    float eqSubState1   { 0.0f };
-    float eqSubState2   { 0.0f };
+    // ---- EQ (Sub = RBJ-Low-Shelf auf x0; Punch/Air additiv; Rumble-HP) ----
+    /** Low-Shelf (RBJ, Slope 1.0 / Q0 = 0.7071) als Sub-Band (B1).
+        Bei Gain 0 dB gilt b0 = a0, b1 = a1, b2 = a2 -> exakt transparent. */
+    float eqShelfB0 { 1.0f }, eqShelfB1 { 0.0f }, eqShelfB2 { 0.0f };
+    float eqShelfA1 { 0.0f }, eqShelfA2 { 0.0f };
+    float eqShelfX1 { 0.0f }, eqShelfX2 { 0.0f };
+    float eqShelfY1 { 0.0f }, eqShelfY2 { 0.0f };
     float eqHighShelfState { 0.0f };
     float eqHighpassState { 0.0f };
     float eqRumbleCoeff { 0.99f };
-    float eqSubCoeff { 0.99f };
     float eqAirCoeff { 0.5f };
     float eqPunchB0 { 0.0f }, eqPunchB1 { 0.0f }, eqPunchB2 { 0.0f };
     float eqPunchA1 { 0.0f }, eqPunchA2 { 0.0f };
     float eqPunchX1 { 0.0f }, eqPunchX2 { 0.0f };
     float eqPunchY1 { 0.0f }, eqPunchY2 { 0.0f };
-    float eqSubGainLin { 0.0f };
     float eqPunchGainLin { 0.0f };
     float eqAirGainLin { 0.0f };
-    float eqMakeupNorm { 1.0f }; ///< 1/(1+Boost-Summe), Clamp (SND-079)
     bool  eqSubTrack { true };   ///< Sub-Band trackt f0 (SND-073)
 
     // ---- Compressor-Integration (SND-088/090) ----
@@ -344,13 +366,11 @@ private:
     float monoBelowCoeffValue { 1.0f };
     bool  monoBelowActive { false };
     float outputWidthValue { 1.0f };
-    float clipDrive { 1.0f };   ///< 1 + 4*clipAmt
-    float clipNorm { 1.0f };    ///< clipCeiling / tanh(clipDrive)
-    float clipCeiling { 1.0f }; ///< Ceiling der Clip-Stufe (SND-010 Invariante)
+    float clipCeiling { 1.0f }; ///< Ceiling der Clip-Stufe (1 - 0.5*outputClip, B3)
     bool  clipActive { false };
     float limiterGainReductionDb { 0.0f };
 
-    // Limiter: Instant-Attack + Release, Peak-Hold, kein Per-Sample-Brickwall.
+    // Limiter: Instant-Attack + Release, Peak-Hold, True-Peak-Detektor (4x).
     // (Kein Lookahead -> keine Latenz; der Pegel wird über peakEnv garantiert
     //  <= ceiling gehalten, weil needed <= ceiling/|x| ist.)
     float limiterGain { 1.0f };
@@ -361,6 +381,15 @@ private:
     float limiterPeakDecay { 0.0f };
     float limiterMinGain { 1.0f }; ///< Block-Minimum für GR-Metering (SND-005/020)
     float limiterGainReductionMaxDb { 0.0f }; ///< Maximum über alle Blöcke seit reset
+
+    // True-Peak-Detektor (B7): die letzten Samples werden gehalten, um das
+    // Intervall [n-1, n] mit einer kubischen Hermite-Interpolation zu
+    // verfeinern (4 Punkte pro Sample). Stereo-linked (max beider Kanaele).
+    float limiterPrevL { 0.0f }, limiterPrev2L { 0.0f };
+    float limiterPrevR { 0.0f }, limiterPrev2R { 0.0f };
+    bool  limiterHistoryValid { false };
+    float blockTruePeak { 0.0f };  ///< True-Peak des laufenden Blocks (linear)
+    float truePeakDb { -100.0f };  ///< True-Peak des letzten Blocks in dBFS
 
     // Mono-Below (komplementäres First-Order-Paar)
     float monoBelowState { 0.0f };
@@ -380,11 +409,13 @@ private:
     // dieses Samples, |x|-Peak-Nachfolger, ~2 ms Attack,
     // Release = "duckRelease"). Die Duck-Gain-Stufe sitzt am Eingang
     // der Output-Stufe (post Summen-Knoten, pre-Gain/Clip/Limiter) und
-    // duckt damit den kompletten Mix inkl. FX-Tails. duckDepth = 0 -> Gain exakt 1.
+    // Review M3: Der Duck wirkt nur noch auf die FX-Ausgaenge (Room/Higgs/
+    // Reverb/MaterialRoom), NICHT auf den trockenen Kick. duckDepth = 0 -> Gain 1.
     float duckDepthDb { 0.0f };        ///< "duckDepth" (0..24 dB)
     float duckAttackCoeff { 0.0f };    ///< ~2 ms Attack
     float duckReleaseCoeff { 0.0f };   ///< Block-Konstante aus "duckRelease" (20..500 ms)
-    float duckEnv { 0.0f };            ///< Follower-State (0..1, geklemmt)
+    float duckEnv { 0.0f };
+    float duckGainCurrent { 1.0f };  ///< Review M3: Duck-Gain (wirkt nur auf die FX)
     float membraneBusSample { 0.0f };  ///< Duck-Quelle: |Membrane+Body| des laufenden Samples
     float subBusSample { 0.0f };       ///< Duck-Quelle: |Sub| des laufenden Samples
 
@@ -439,7 +470,7 @@ private:
     void updateSubOscillator (float tunedFundamental, float decayMs, float detuneCents);
     void updateBodyOscillator (float tunedFundamental, float tuning, float decayMs, float attackMs);
     float processSub (float subLevel, int subShape);
-    float processBody (float bodyLevel, float pitchRatio);
+    float processBody (float bodyLevel, float bodyRatio);
     float processDrive (float x, float amount, float mix, int character);
     void updateRoom (float level, float decayMs, float rumbleTone, float bpm);
     StereoMix processRoomRumble (const StereoMix& in);

@@ -14,7 +14,8 @@
       Z = rho*c, R, alpha_normal, alpha_room (Spec §1).
     - 4 Taps mit Verhaeltnissen [1.0, 1.37, 1.79, 2.21] * (L / c); L =
       materialRoomSize in Metern, c = Schallgeschwindigkeit des Materials.
-    - Stereo-Taps mit +/-3 % Versatz; Hadamard-4x4-Mischung im Rueckkopplungspfad.
+    - Stereo-Taps mit +/-0,3 % Versatz (M2: +/-3 % erzeugten in Mono ~180°
+      Phasendrehung im Präsenzband); Hadamard-4x4-Mischung im Rueckkopplungspfad.
     - Feedback pro Material: clamp(0.55 + 0.44*(1 - alpha_room), 0.55, 0.995).
     - Damping: One-Pole-LP pro Tap, fc = clamp(12000 - 9000*alpha_room, 1500, 18000)
       * (1 + 0.35*rho/7850), begrenzt auf 0.45*fs.
@@ -32,6 +33,8 @@
       Der Grumble ist vom Room-Mix unabhaengig (eigener Pegel); mix = 0 und
       grumbleLevel = 0 -> exakt 0. Er wird dem Wet-Return additiv zugemischt,
       nie vom Dry abgezogen.
+      M1: Die Pan-Verteilung wird mit 1/(cos+sin) normiert - die Mono-Summe
+      (L+R) ist damit konstant pegelneutral und atmet nicht mit dem Pan-LFO.
       MR-035: bei starkem Kick-Transienten (Env-Retrigger von < 20 % auf
       >= 80 %) wird die Sub-Oszillator-Phase deterministisch per LCG neu
       gezogen (fester Seed, nicht pro Sample).
@@ -265,7 +268,7 @@ public:
 
 private:
     static constexpr float kTapRatios[kNumTaps] { 1.0f, 1.37f, 1.79f, 2.21f };
-    static constexpr float kStereoSpread = 0.03f;        // +/-3 % L/R-Versatz
+    static constexpr float kStereoSpread = 0.003f;       // +/-0,3 % L/R-Versatz (M2)
     static constexpr float kMaxRoomSizeM = 30.0f;        // Parameter-Obergrenze
     static constexpr float kMinSpeedOfSound = 250.0f;    // Fabric (langsamstes c)
     static constexpr float kDenormalThreshold = 1.0e-20f;
@@ -440,8 +443,15 @@ private:
         const float angle = (pan + 1.0f) * 0.25f * juce::MathConstants<float>::pi;
         const float amp = osc * grumbleEnv * grumbleLevel;
 
-        wetL += amp * std::cos (angle);
-        wetR += amp * std::sin (angle);
+        // M1 (Mono-Pegelneutralitaet): cos+sin normieren. Ohne diese Normierung
+        // liefert jeder Kanal bei Pan 0 nur 0.71*amp => die Mono-Summe ist
+        // +3 dB lauter und der Pan-LFO moduliert die Mono-Summe (Sub "atmet").
+        // Mit der Normierung ist L+R = amp konstant (pan-unabhaengig), das
+        // Kanal-Stereo-Bild (cos:sin) bleibt exakt erhalten.
+        const float panSum = juce::jmax (1.0e-3f, std::cos (angle) + std::sin (angle));
+
+        wetL += amp * std::cos (angle) / panSum;
+        wetR += amp * std::sin (angle) / panSum;
 
         advancePhase (grumblePhase, grumblePhaseInc);
         advancePhase (panPhase, panPhaseInc);

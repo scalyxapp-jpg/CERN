@@ -10,11 +10,11 @@ struct DefaultValues
     // Membrane
     static constexpr float membraneTension      = 0.5f;
     static constexpr float membraneRadius       = 0.22f;
-    static constexpr float membraneMass         = 1.0f;
+    static constexpr float membraneMass         = 0.8f;
     static constexpr float membraneDamping      = 0.45f;
     static constexpr float membraneModes        = 4.0f;
     static constexpr float fundamentalHz        = 46.25f; // TV/Small-Speaker: 46 Hz sinnvoll
-    static constexpr float membraneNonlinearity = 0.10f;
+    static constexpr float membraneNonlinearity = 0.50f;
     static constexpr float membraneStiffness    = 0.10f;
 
     // Tube / Hollow
@@ -26,8 +26,8 @@ struct DefaultValues
 
     // Pitch Envelope
     static constexpr float pitchEnvAttack       = 0.2f;
-    static constexpr float pitchEnvDecay        = 60.0f;
-    static constexpr float pitchEnvDepth        = 0.30f;
+    static constexpr float pitchEnvDecay        = 45.0f;
+    static constexpr float pitchEnvDepth        = 1.50f;
     static constexpr float pitchEnvCurve        = 0.0f;
 
     // Click / Beater
@@ -38,13 +38,13 @@ struct DefaultValues
     static constexpr int   clickBeaterMaterial  = 1; // Medium
 
     // Body
-    static constexpr float bodyLevel            = 0.58f;
+    static constexpr float bodyLevel            = 0.35f;
     static constexpr float bodyAttack           = 0.8f;
     static constexpr float bodyDecay            = 500.0f;
-    static constexpr float bodyTuning           = 1.0f;
+    static constexpr float bodyTuning           = 2.0f;
 
     // Sub
-    static constexpr float subLevel             = 0.58f;
+    static constexpr float subLevel             = 0.46f;
     static constexpr float subDecay             = 520.0f;
     static constexpr float subDetune            = 0.0f;
     static constexpr int   subShape             = 0; // Sine
@@ -67,8 +67,8 @@ struct DefaultValues
     // Compressor
     static constexpr float compThreshold        = -10.0f;
     static constexpr float compRatio            = 2.5f;
-    static constexpr float compAttack           = 15.0f;
-    static constexpr float compRelease          = 120.0f;
+    static constexpr float compAttack           = 6.0f;
+    static constexpr float compRelease          = 240.0f;
     static constexpr float compKnee             = 6.0f;
     static constexpr float compMakeup           = 0.0f;
     static constexpr float compMix              = 1.0f;
@@ -79,7 +79,7 @@ struct DefaultValues
     static constexpr float outputPan            = 0.0f;
     static constexpr float outputWidth          = 1.0f;
     static constexpr float outputMonoBelow      = 150.0f;
-    static constexpr float outputClip           = 0.35f;
+    static constexpr float outputClip           = 0.0f;
     static constexpr float outputLimiter        = 0.15f;
 
     // Room
@@ -157,7 +157,7 @@ struct DefaultValues
     // Performance / FX
     static constexpr float velToClick           = 0.0f;
     static constexpr float humanize             = 0.0f;
-    static constexpr bool  oversampleEnabled    = false;
+    static constexpr bool  oversampleEnabled    = true;
     static constexpr float fxWidth              = 1.0f;
 
     // Material Room / Sub Grumble (MATERIAL_ROOM_SPEC.md §3)
@@ -178,6 +178,7 @@ struct DefaultValues
     static constexpr float grumbleDecay         = 0.5f;
 
     // Feature-Findings (SND-068/174)
+    static constexpr float clickNoiseMix        = 0.5f;
     static constexpr bool  tubeTrack             = true;
     static constexpr float duckDepth             = 0.0f;  // dB
     static constexpr float duckRelease           = 80.0f; // ms
@@ -186,7 +187,7 @@ struct DefaultValues
 //==============================================================================
 /** Anzahl der Parameter im Layout: 1199 Basis-Parameter + 12 Module-Enables
     + 15 Material Room / Sub Grumble + 3 Feature-Findings = 1229. */
-inline constexpr int numLayoutParameters = 1310; // 1229 + 78 Mixer + 1 Sidechain + 2 Layering
+inline constexpr int numLayoutParameters = 543;  // 1311 - 768 (Sequencer-Slots 64->16) + 78 Mixer + 1 Sidechain + 2 Layering + 1 Click-Noise
 
 /** Erstellt das APVTS-Parameter-Layout mit allen 1229 Parametern. */
 juce::AudioProcessorValueTreeState::ParameterLayout createLayout();

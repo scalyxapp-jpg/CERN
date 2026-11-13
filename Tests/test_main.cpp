@@ -81,6 +81,27 @@ TEST (pitch_envelope)
     CHECK (maxRatio < 2.0f);
 }
 
+// Review 2026-11-13 (C1): Die Pitch-Envelope muss von OBEN auf f0 fallen.
+TEST (pitch_envelope_falls_downwards)
+{
+    PitchEnvelope pe;
+    pe.prepare (48000.0);
+    pe.trigger();
+
+    const float depth = 1.5f;
+    const float firstRatio = pe.process (0.2f, 40.0f, depth, 0.0f);
+    float lastRatio = firstRatio;
+
+    for (int i = 0; i < 48000; ++i)
+        lastRatio = pe.process (0.2f, 40.0f, depth, 0.0f);
+
+    // Start: 2^depth (Maximum), Ende: 1.0 (f0).
+    CHECK (firstRatio > 2.0f);
+    CHECK (std::abs (firstRatio - std::pow (2.0f, depth)) < 0.05f);
+    CHECK (lastRatio < firstRatio * 0.5f);
+    CHECK (lastRatio >= 0.99f);
+}
+
 TEST (click_generator)
 {
     ClickGenerator cg;
@@ -711,8 +732,8 @@ TEST (preset_manager_factory_presets)
     ParameterPatchGraph parameterPatch;
     PresetManager presets (apvts, patch, parameterPatch);
 
-    CHECK (presets.getNumFactoryPresets() == 11);
-    CHECK (presets.getFactoryPresetNames().size() == 11);
+    CHECK (presets.getNumFactoryPresets() == 16);
+    CHECK (presets.getFactoryPresetNames().size() == 16);
 
     for (int i = 0; i < presets.getNumFactoryPresets(); ++i)
     {
@@ -815,7 +836,7 @@ TEST (factory_presets_include_higgs_and_parameter_patch)
     ParameterPatchGraph parameterPatch;
     PresetManager presets (apvts, audioPatch, parameterPatch);
 
-    CHECK (presets.getNumFactoryPresets() == 11);
+    CHECK (presets.getNumFactoryPresets() == 16);
 
     for (int i = 0; i < presets.getNumFactoryPresets(); ++i)
     {
@@ -2574,38 +2595,140 @@ TEST (mixer_sidechain_is_proportional_and_click_free)
 
 //==============================================================================
 
-TEST (ducking_depth_reduces_output)
+namespace
 {
-    auto energyAtDepth = [] (float depthDb)
+std::vector<float> renderEngineKick (EngineHarness& harness, int blocks = 60)
+{
+    harness.engine.trigger (1.0f, 0.0f);
+
+    juce::AudioBuffer<float> block (2, 512);
+    std::vector<float> out;
+
+    for (int b = 0; b < blocks; ++b)
+    {
+        block.clear();
+        harness.render (block);
+
+        for (int i = 0; i < block.getNumSamples(); ++i)
+            out.push_back (block.getSample (0, i));
+    }
+
+    return out;
+}
+
+/** Band-RMS als Proxy (2x One-Pole HP + 2x LP), in dBFS. */
+double bandRmsDb (const std::vector<float>& x, double loHz, double hiHz)
+{
+    const double sr = 48000.0;
+    const double hp = std::exp (-2.0 * juce::MathConstants<double>::pi * loHz / sr);
+    const double lp = std::exp (-2.0 * juce::MathConstants<double>::pi * hiHz / sr);
+    double hp1 = 0.0, hp2 = 0.0, l1 = 0.0, l2 = 0.0, acc = 0.0;
+
+    for (float s : x)
+    {
+        const double v = (double) s;
+        hp1 = (1.0 - hp) * v + hp * hp1;
+        const double h = v - hp1;
+        hp2 = (1.0 - hp) * h + hp * hp2;
+        const double hh = h - hp2;
+        l1 = (1.0 - lp) * hh + lp * l1;
+        l2 = (1.0 - lp) * l1 + lp * l2;
+        acc += l2 * l2;
+    }
+
+    const double rms = std::sqrt (acc / (double) juce::jmax (1, (int) x.size()));
+    return 20.0 * std::log10 (juce::jmax (1.0e-12, rms));
+}
+
+float peakOf (const std::vector<float>& x)
+{
+    float peak = 0.0f;
+
+    for (const float s : x)
+        peak = juce::jmax (peak, std::abs (s));
+
+    return peak;
+}
+} // namespace
+
+TEST (ducking_does_not_touch_the_dry_kick)
+{
+    auto peakAtDepth = [] (float depthDb)
     {
         EngineHarness harness;
         harness.set (ParameterIDs::duckDepth, depthDb);
         harness.set (ParameterIDs::duckRelease, 80.0f);
         harness.settle();
+
+        const auto out = renderEngineKick (harness, 40);
+        return (double) peakOf (out);
+    };
+
+    const double dry = peakAtDepth (0.0f);
+    const double ducked = peakAtDepth (24.0f);
+
+    CHECK (dry > 1.0e-3);
+    // M3: Der globale Duck wirkt nur auf die FX - der Kick-Pegel bleibt gleich.
+    CHECK (std::abs (ducked - dry) / dry < 0.02);
+}
+
+//==============================================================================
+// Review 2026-11-13 (M3): Der globale Duck wirkt nur noch auf die FX.
+// Der trockene Kick darf nicht mehr mitgeduckt werden (Self-Ducking).
+TEST (ducking_affects_fx_tail_only)
+{
+    auto energy = [] (float depthDb, bool tailOnly)
+    {
+        EngineHarness harness;
+        harness.set (ParameterIDs::duckDepth, depthDb);
+        harness.set (ParameterIDs::duckRelease, 500.0f); // Duck haelt bis in den Tail
+        harness.set (ParameterIDs::roomLevel, 0.8f);
+        harness.set (ParameterIDs::roomDecay, 2000.0f);
+        // Dry kurz halten, damit im Messfenster der Room-Tail dominiert.
+        harness.set (ParameterIDs::subLevel, 0.0f);
+        harness.set (ParameterIDs::subDecay, 60.0f);
+        harness.set (ParameterIDs::bodyLevel, 0.0f);
+        harness.set (ParameterIDs::clickLevel, 0.0f);
+        harness.settle();
         harness.engine.trigger (1.0f, 0.0f);
 
         juce::AudioBuffer<float> buffer (2, 512);
-        double energy = 0.0;
+        double sum = 0.0;
+
         for (int block = 0; block < 80; ++block)
         {
             buffer.clear();
             harness.render (buffer);
+
+            // Tail = alles nach den ersten 20 Bloecken (der Dry ist dann weg).
+            if (tailOnly && block < 20)
+                continue;
+
             for (int ch = 0; ch < 2; ++ch)
                 for (int i = 0; i < buffer.getNumSamples(); ++i)
                 {
                     const double sample = buffer.getSample (ch, i);
-                    energy += sample * sample;
+                    sum += sample * sample;
                 }
         }
-        return energy;
+
+        return sum;
     };
 
-    const double dry = energyAtDepth (0.0f);
-    const double ducked = energyAtDepth (24.0f);
+    // Der FX-Tail wird deutlich geduckt.
+    const double tailDry = energy (0.0f, true);
+    const double tailDucked = energy (24.0f, true);
 
-    CHECK (dry > 1.0e-4);
-    CHECK (ducked > 0.0);
-    CHECK (ducked < dry * 0.5); // mindestens ~3 dB Energie weg
+    CHECK (tailDry > 1.0e-6);
+    CHECK (tailDucked > 0.0);
+    CHECK (tailDucked < tailDry * 0.75);
+
+    // Der trockene Kick (erste Bloecke) bleibt unveraendert.
+    const double dryDry = energy (0.0f, false);
+    const double dryDucked = energy (24.0f, false);
+
+    CHECK (dryDry > 1.0e-4);
+    CHECK (std::abs (dryDucked - dryDry) / dryDry < 0.25);
 }
 
 //==============================================================================
@@ -3135,7 +3258,7 @@ TEST (factory_presets_loudness_spread)
     float minLufs = 1.0e9f;
     float maxLufs = -1.0e9f;
 
-    for (int preset = 0; preset < 11; ++preset)
+    for (int preset = 0; preset < 16; ++preset)
     {
         const float lufs = measurePreset (preset);
         CHECK (std::isfinite (lufs));
@@ -3536,7 +3659,7 @@ TEST (layering_keeps_loudness_across_factory_presets)
         return LoudnessMeter::measureLufs (full, 48000.0);
     };
 
-    for (int preset = 0; preset < 11; ++preset)
+    for (int preset = 0; preset < 16; ++preset)
     {
         const float offLufs = measureRmsDb (preset, false);
         const float onLufs  = measureRmsDb (preset, true);
@@ -3641,6 +3764,91 @@ TEST (layering_extreme_settings_stay_within_one_db)
         CHECK (std::isfinite (onLufs));
         CHECK (std::abs (onLufs - offLufs) <= 1.0f);
     }
+}
+
+//==============================================================================
+// Review 2026-11-13: Die kritischen Gain-/Phasenkorrekturen (C1–C4, H1, H4)
+// sind messbar - nicht nur im Code nachvollziehbar.
+
+TEST (eq_sub_gain_is_honest)
+{
+    EngineHarness flat, boosted;
+    flat.set (ParameterIDs::eqSubGain, 0.0f);
+    boosted.set (ParameterIDs::eqSubGain, 6.0f);
+    flat.settle();
+    boosted.settle();
+
+    const auto a = renderEngineKick (flat);
+    const auto b = renderEngineKick (boosted);
+
+    // Am Grundton (46,25 Hz) muss +6 dB auch als +6 dB ankommen.
+    const double delta = bandRmsDb (b, 38.0, 56.0) - bandRmsDb (a, 38.0, 56.0);
+
+    CHECK (delta > 2.0);
+    CHECK (delta < 9.0);
+}
+
+TEST (output_clip_does_not_add_gain)
+{
+    EngineHarness clean, clipped;
+    clean.set (ParameterIDs::outputClip, 0.0f);
+    clipped.set (ParameterIDs::outputClip, 1.0f);
+    clean.settle();
+    clipped.settle();
+
+    const auto a = renderEngineKick (clean);
+    const auto b = renderEngineKick (clipped);
+
+    // Der Clipper ist ein Sicherheitsnetz: er darf nicht lauter machen.
+    CHECK (peakOf (b) <= peakOf (a) * 1.02f);
+    CHECK (vectorRmsDb (b) <= vectorRmsDb (a) + 0.3);
+}
+
+TEST (drive_does_not_add_gain)
+{
+    EngineHarness dry, driven;
+    dry.set (ParameterIDs::driveAmount, 0.0f);
+    dry.set (ParameterIDs::driveMix, 1.0f);
+    driven.set (ParameterIDs::driveAmount, 0.8f);
+    driven.set (ParameterIDs::driveMix, 1.0f);
+    dry.settle();
+    driven.settle();
+
+    const auto a = renderEngineKick (dry);
+    const auto b = renderEngineKick (driven);
+
+    // Slope 1: der Drive färbt, er verstärkt nicht.
+    CHECK (vectorRmsDb (b) <= vectorRmsDb (a) + 1.0);
+}
+
+TEST (true_peak_is_reported)
+{
+    EngineHarness harness;
+    harness.settle();
+    renderEngineKick (harness, 40);
+
+    const float truePeak = harness.engine.getTruePeakDb();
+
+    CHECK (std::isfinite (truePeak));
+    CHECK (truePeak <= 0.1f);
+    CHECK (truePeak > -60.0f);
+}
+
+TEST (membrane_fundamental_dominates)
+{
+    EngineHarness harness;
+    harness.set (ParameterIDs::bodyLevel, 0.0f);
+    harness.set (ParameterIDs::subLevel, 0.0f);
+    harness.settle();
+
+    const auto out = renderEngineKick (harness);
+
+    // Fundamental (46,25 Hz) muss mindestens so stark sein wie Mode 1 (73,7 Hz).
+    const double fundamental = bandRmsDb (out, 40.0, 55.0);
+    const double mode1 = bandRmsDb (out, 68.0, 80.0);
+
+    CHECK (fundamental > -60.0);
+    CHECK (fundamental >= mode1 - 1.0);
 }
 
 //==============================================================================

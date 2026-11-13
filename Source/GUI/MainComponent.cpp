@@ -28,6 +28,7 @@ MainComponent::MainComponent (CERNAudioProcessor& processorRef,
 
     fftBuffer.resize ((size_t) fftSize * 2, 0.0f);
     spectrumBars.assign (64, 0.0f);
+    spectrumBarFrequencies.assign (64, 0.0f);
 
     header = std::make_unique<HeaderBar> (processor, audioDeviceManager);
     header->onPatchToggle = [this]
@@ -91,10 +92,12 @@ MainComponent::MainComponent (CERNAudioProcessor& processorRef,
         ParameterIDs::eqAirFreq,            ParameterIDs::eqAirGain,
         ParameterIDs::eqRumbleHP
     }, { ParameterIDs::eqEnabled });
+    // M13: compMix/compAutoMakeup gehoeren thematisch zum Kompressor.
     addSection ("Comp", {
         ParameterIDs::compThreshold,        ParameterIDs::compRatio,
         ParameterIDs::compAttack,           ParameterIDs::compRelease,
-        ParameterIDs::compKnee,             ParameterIDs::compMakeup
+        ParameterIDs::compKnee,             ParameterIDs::compMakeup,
+        ParameterIDs::compMix,              ParameterIDs::compAutoMakeup
     }, { ParameterIDs::compEnabled });
     addSection ("Output", {
         ParameterIDs::outputGain,           ParameterIDs::outputPan,
@@ -138,7 +141,6 @@ MainComponent::MainComponent (CERNAudioProcessor& processorRef,
         ParameterIDs::midiNoteHigh,         ParameterIDs::midiChokeMs,
         ParameterIDs::velToClick,           ParameterIDs::humanize,
         ParameterIDs::oversampleEnabled,    ParameterIDs::fxWidth,
-        ParameterIDs::compMix,              ParameterIDs::compAutoMakeup,
         ParameterIDs::envFollowAttack,      ParameterIDs::envFollowRelease,
         ParameterIDs::layeringEnabled,      ParameterIDs::layeringAmount
     });
@@ -477,11 +479,29 @@ void MainComponent::updateDisplays()
     const double snapshotRate =
         sampleRate / (double) CERNAudioProcessor::DisplayBuffers::waveformDecimation;
 
+    // Frequenzachse: 20–120 Hz LINEAR (der Sub-Band ist bei einem Kick die
+    // entscheidende Information), darueber logarithmisch bis 20 kHz.
     const int numBars = (int) spectrumBars.size();
+    const int linearBars = juce::jmax (8, (int) std::round ((double) numBars * 0.40));
+    const double subTop = 120.0;
+
     for (int bar = 0; bar < numBars; ++bar)
     {
-        const double f0 = 20.0 * std::pow (1000.0, (double) bar / (double) numBars);
-        const double f1 = 20.0 * std::pow (1000.0, (double) (bar + 1) / (double) numBars);
+        double f0 = 0.0, f1 = 0.0;
+
+        if (bar < linearBars)
+        {
+            f0 = 20.0 + (subTop - 20.0) * (double) bar / (double) linearBars;
+            f1 = 20.0 + (subTop - 20.0) * (double) (bar + 1) / (double) linearBars;
+        }
+        else
+        {
+            const double logBars = (double) (numBars - linearBars);
+            const double u0 = (double) (bar - linearBars) / logBars;
+            const double u1 = (double) (bar + 1 - linearBars) / logBars;
+            f0 = subTop * std::pow (20000.0 / subTop, u0);
+            f1 = subTop * std::pow (20000.0 / subTop, u1);
+        }
 
         const int bin0 = juce::jlimit (1, fftSize / 2 - 1,
                                        (int) (f0 / snapshotRate * (double) fftSize));
@@ -493,9 +513,11 @@ void MainComponent::updateDisplays()
             peak = juce::jmax (peak, fftBuffer[(size_t) bin]);
 
         spectrumBars[(size_t) bar] = peak * 2.0f / (float) fftSize;
+        spectrumBarFrequencies[(size_t) bar] = 0.5f * (float) (f0 + f1);
     }
 
     spectrumAnalyzer.setSpectrum (spectrumBars);
+    spectrumAnalyzer.setBarFrequencies (spectrumBarFrequencies);
 
     // ---- SND-170: Kurzzeit-LUFS + GR-History (30-Hz-Timer, keine Audio-Thread-Locks) ----
     if (meterDisplay != nullptr)
@@ -506,6 +528,11 @@ void MainComponent::updateDisplays()
                                             (int) grHistoryScratch.size());
         meterDisplay->setGainReductionHistory (grHistoryScratch.data(),
                                                (int) grHistoryScratch.size());
+
+        // M12: Ausgabe-Meter (Limiter-GR, Clip-GR, True-Peak).
+        meterDisplay->setOutputMeters (processor.getEngine().getLimiterGainReductionDb(),
+                                       processor.getEngine().getClipGainReductionDb(),
+                                       processor.getEngine().getTruePeakDb());
     }
 
     // ---- Pitch-Envelope (echter exponentieller Verlauf inkl. Curve, SND-171) ----
@@ -625,6 +652,7 @@ void MainComponent::MeterDisplay::resized()
 {
     auto area = getLocalBounds().toFloat().reduced (10.0f, 4.0f);
     area.removeFromTop (16.0f);
+
     graphArea = area;
 
     rebuildGraphPath();
@@ -657,6 +685,26 @@ void MainComponent::MeterDisplay::rebuildGraphPath()
     graphFill.lineTo (graphArea.getRight(), graphArea.getBottom());
     graphFill.lineTo (graphArea.getX(), graphArea.getBottom());
     graphFill.closeSubPath();
+}
+
+void MainComponent::MeterDisplay::setOutputMeters (float limiterGrDb, float clipGrDb,
+                                                   float truePeakDb)
+{
+    const juce::String newFull =
+          "TPK " + juce::String (truePeakDb, 1) + " dBTP  |  LIM "
+        + juce::String (limiterGrDb, 1) + " dB  |  CLIP "
+        + juce::String (clipGrDb, 1) + " dB";
+
+    const juce::String newShort =
+          "TPK " + juce::String (truePeakDb, 1) + "  LIM "
+        + juce::String (limiterGrDb, 1) + "  CLIP " + juce::String (clipGrDb, 1);
+
+    if (newFull != outputText)
+    {
+        outputText = newFull;
+        outputTextShort = newShort;
+        repaint();
+    }
 }
 
 void MainComponent::MeterDisplay::paint (juce::Graphics& g)
@@ -697,6 +745,23 @@ void MainComponent::MeterDisplay::paint (juce::Graphics& g)
     drawSeq ("GR", grLabelW, CERNLookAndFeel::textColour.withAlpha (0.6f));
     textRow.removeFromLeft (gap);
     drawSeq (grText, grValueW, CERNLookAndFeel::textColour);
+
+    // M12: True-Peak / Limiter-GR / Clip-GR in der ersten Zeile (wenn Platz ist).
+    {
+        const float gap = 8.0f;
+        const juce::Font smallFont (CERNLookAndFeel::getLabelFont());
+        const float outW = juce::GlyphArrangement::getStringWidth (smallFont, outputTextShort);
+
+        if (textRow.getWidth() > outW + 130.0f)
+        {
+            textRow.removeFromLeft (gap * 2.0f);
+            g.setFont (smallFont);
+            g.setColour (CERNLookAndFeel::textColour.withAlpha (0.55f));
+            g.drawText (outputTextShort, textRow.removeFromLeft (outW),
+                        juce::Justification::centredLeft, false);
+            g.setFont (valueFont);
+        }
+    }
 
     const bool hasStatus = statusText.isNotEmpty();
     const bool narrowMeter = textRow.getWidth() < 190.0f;

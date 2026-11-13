@@ -163,7 +163,7 @@ static constexpr auto* velToPitch           = "velToPitch";           // 0–1 (
 // ============================================================================
 static constexpr auto* sequencerBpm         = "sequencerBpm";         // 40–240 BPM
 static constexpr auto* sequencerPlaying     = "sequencerPlaying";     // bool
-static constexpr auto* sequencerSteps       = "sequencerSteps";       // 1–64 (SND-145)
+static constexpr auto* sequencerSteps       = "sequencerSteps";       // 1–16 (SND-145, M14)
 static constexpr auto* sequencerSwing       = "sequencerSwing";       // 0–0.75 (SND-138)
 static constexpr auto* sequencerSyncMode    = "sequencerSyncMode";    // Choice: Internal/Host (SND-136)
 static constexpr auto* sequencerGrid        = "sequencerGrid";        // Choice: 1/16, 1/8T, 1/16T (SND-144)
@@ -178,8 +178,9 @@ inline juce::String sequencerChainSlot (int i) { return juce::String (sequencerC
 // Pro-Schritt-Parameter (bestehend 48): #70 - #117 (i = 0..15)
 // stepVel_i, stepGate_i, stepPitch_i
 // ----------------------------------------------------------------------------
-// Neue Pro-Schritt-Parameter (SND-140..143, SND-147): je Pattern 64 Slots
-// (patternStride = StepSequencer::maxSteps), 4 Patterns -> i = 0..255.
+// Neue Pro-Schritt-Parameter (SND-140..143, SND-147): je Pattern 16 Slots
+// (patternStride = StepSequencer::maxSteps = 16), 4 Patterns -> i = 0..63.
+// M14: 64 -> 16 Slots (die GUI zeigt 16 Steps; die Slots 17..64 waren tot).
 // ============================================================================
 static constexpr auto* stepPrefixVel  = "stepVel_";  // 0.0–1.0
 static constexpr auto* stepPrefixGate = "stepGate_"; // 0.0–1.0 (bool-ish)
@@ -299,6 +300,7 @@ static constexpr auto* mixerSidechainDepth = "mixerSidechainDepth"; // 0–1, gl
 // ============================================================================
 static constexpr auto* layeringEnabled = "layeringEnabled"; // bool
 static constexpr auto* layeringAmount  = "layeringAmount";  // 0–200 %, skaliert beide Layer
+static constexpr auto* clickNoiseMix   = "clickNoiseMix";   // 0–1, Rausch-/Tick-Anteil im Click
 
 /** Reihenfolge der Mixer-Parameter je Kanal (Gain, Low, MidLow, Mid, High, Mute). */
 inline constexpr std::array<const char*, 6> mixerParamOrder { "Gain", "Low", "MidLow", "Mid", "High", "Mute" };
@@ -402,8 +404,10 @@ inline const std::vector<juce::String>& getAllIDs()
             v.push_back (stepGate (i));
             v.push_back (stepPitch(i));
         }
-        // Neue Step-Parameter: 4 Patterns x 64 Slots (patternStride) = 256
-        for (int i = 0; i < 4 * 64; ++i)
+        // Neue Step-Parameter: 4 Patterns x 16 Slots (patternStride) = 64
+        // (M14: 64 -> 16 Slots, entspricht der GUI (16 Step-Tasten);
+        //  768 zuvor tote Parameter entfallen).
+        for (int i = 0; i < 4 * 16; ++i)
         {
             v.push_back (stepRatchet    (i));
             v.push_back (stepFlam       (i));
@@ -487,6 +491,7 @@ inline const std::vector<juce::String>& getAllIDs()
         // Automatisches Layering (1 Bool). Ganz am Ende, Indizes stabil.
         v.push_back (layeringEnabled);
         v.push_back (layeringAmount);
+        v.push_back (clickNoiseMix);
         return v;
     }();
     return ids;

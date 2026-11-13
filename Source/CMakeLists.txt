@@ -295,6 +295,54 @@ target_compile_definitions(CERNTests PRIVATE
 
 target_compile_features(CERNTests PRIVATE cxx_std_20)
 
+# --- Lab Target: Offline-Render + Kennzahlen (A/B hoerbar) ---
+add_executable(CERNLab
+    Lab/LabRenderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Parameters/ParameterLayout.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/DSP/KickSynthesisEngine.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/DSP/PatchGraph.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/DSP/ParameterPatchGraph.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/DSP/MixerStage.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/DSP/LayeringStage.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Sequencer/StepSequencer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Presets/PresetManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/GUI/HiggsField3D.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/GUI/Theme/CERNLookAndFeel.cpp
+)
+
+target_include_directories(CERNLab PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/DSP
+    ${CMAKE_CURRENT_SOURCE_DIR}/GUI
+    ${CMAKE_CURRENT_SOURCE_DIR}/GUI/Theme
+    ${CMAKE_CURRENT_SOURCE_DIR}/Parameters
+    ${CMAKE_CURRENT_SOURCE_DIR}/Presets
+    ${CMAKE_CURRENT_SOURCE_DIR}/Sequencer
+)
+
+target_link_libraries(CERNLab PRIVATE
+    juce::juce_audio_basics
+    juce::juce_audio_devices
+    juce::juce_audio_formats
+    juce::juce_audio_processors
+    juce::juce_audio_utils
+    juce::juce_core
+    juce::juce_data_structures
+    juce::juce_dsp
+    juce::juce_graphics
+    juce::juce_gui_basics
+    juce::juce_opengl
+    CERNAssets
+)
+
+target_compile_definitions(CERNLab PRIVATE
+    JUCE_STRICT_REFCOUNTEDPOINTER=1
+    JUCE_DONT_AUTO_INSTALL_OPENGL_PROCS=1
+    CERN_VERSION="${PLUGIN_VERSION}"
+)
+
+target_compile_features(CERNLab PRIVATE cxx_std_20)
+
 # --- Build-Flags der Projekt-Targets (Warnungen, optional Sanitizer) ---
 # Nur eigene Targets, nie JUCE. Definition in cmake/CERNTarget.cmake.
 cern_apply_build_flags(CERN)

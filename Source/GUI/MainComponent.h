@@ -108,6 +108,7 @@ private:
 
     std::vector<float> fftBuffer;
     std::vector<float> spectrumBars;
+    std::vector<float> spectrumBarFrequencies;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
@@ -135,6 +136,9 @@ public:
     /** Aktualisiert den GR-Verlauf (aeltester -> neuester Wert). */
     void setGainReductionHistory (const float* values, int numValues);
 
+    /** M12: Ausgabe-Meter (Limiter-GR, Clip-GR, True-Peak). */
+    void setOutputMeters (float limiterGrDb, float clipGrDb, float truePeakDb);
+
     /** Kurze Statusmeldung (z. B. "UNDO") fuer ~1.6 s. */
     void showStatus (const juce::String& message);
 
@@ -160,6 +164,8 @@ private:
     float currentGr { 0.0f };
     juce::String lufsText { "-inf" };
     juce::String grText { "0.0 dB" };
+    juce::String outputText { "TPK -inf dBTP  |  LIM 0.0 dB  |  CLIP 0.0 dB" };
+    juce::String outputTextShort { "TPK -inf  LIM 0  CLIP 0" };
     juce::String statusText;
     juce::String hintText { "CTRL+Z UNDO  /  CTRL+SHIFT+Z REDO" };
     juce::String hintTextShort { "CTRL+Z / CTRL+Y" };

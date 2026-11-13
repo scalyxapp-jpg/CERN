@@ -82,8 +82,12 @@ void LayeringStage::updateDerived()
 
     // Attack aus dem Body-Attack (etwas weicher, damit kein Zweit-Klick
     // entsteht), Decay aus dem Sub-Decay (traegt bis in den Rumble).
+    // M10: Decay = subDecay * 0.9 (vorher 1.05) - der Depth-Layer ist eine
+    // Duplikation des Sub-Oszillators; mit dem laengeren Decay schwingt er
+    // im Sub nach und verdeckt den Sub. 0.9 laesst ihn etwas frueher
+    // auslaufen als der Sub-Oszillator.
     info.lowAttackMs = std::min (18.0f, std::max (1.5f, params.bodyAttackMs * 0.8f));
-    info.lowDecayMs  = std::min (1400.0f, std::max (200.0f, params.subDecayMs * 1.05f));
+    info.lowDecayMs  = std::min (1400.0f, std::max (200.0f, params.subDecayMs * 0.9f));
 
     // Pegel: getragen von Sub-Level, leicht angehoben durch Drive.
     float lowW = 0.080f + 0.100f * clamp01 (params.subLevel)

@@ -75,7 +75,7 @@ public:
     {
         int sourceParam = -1;              // Index in ParameterIDs::getAllIDs() oder virtuelle Quelle
         int targetParam = -1;              // Index in ParameterIDs::getAllIDs()
-        float amount = 1.0f;               // -1..+1 (SND-151)
+        float amount = 0.25f;              // -1..+1 (SND-151); 0.25 = 25 % des Bereichs
         bool unipolar = false;             // SND-153
         float slewMs = 0.0f;               // 0..20 ms, 0 = aus (SND-155)
         CvRate rate = CvRate::perBlock;    // SND-154
@@ -100,6 +100,9 @@ public:
 
     bool canConnect (int sourceParam, int targetParam) const;
     bool addConnection (int sourceParam, int targetParam);
+
+    /** Verbindung mit eigenem Amount (z. B. Preset-Makro-Kabel). */
+    bool addConnection (int sourceParam, int targetParam, float amount);
     bool removeConnection (int connectionIndex);
 
     /** Entfernt eine Verbindung wertbasiert (stabil gegen Index-Verschiebungen). */

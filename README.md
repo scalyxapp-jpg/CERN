@@ -41,7 +41,7 @@ Ein **FDN (Feedback Delay Network)**-basierter Reverb mit material-spezifischer 
 
 ### Klassische Maschinen als Referenz
 
-- **TR-909** (Pitch-Envelope derzeit linear, exponentieller Decay **in Arbeit**): Einzelner Sinus-Oszillator + Pitch-Envelope (hoch → tief Glissando) + Amplituden-Envelope. Attack regelt die Glissando-Geschwindigkeit, Tune die Endfrequenz, Decay die Dauer. Im aktuellen Build läuft der Decay linear; `Pitch Curve` verbiegt nur den Attack. Geplant ist der exponentielle Decay `exp(-(t-a)/(d/4.605))` mit Kurve auf Attack **und** Decay (SND-022/SND-023), damit der Glissando-Verlauf dem 909/808-Vorbild entspricht.
+- **TR-909** (Pitch-Envelope, 2026-11-13 korrigiert): Einzelner Sinus-Oszillator + Pitch-Envelope (**Tonfall von oben auf die Zielfrequenz**) + Amplituden-Envelope. `Pitch Depth` ist die **Anfangstonhöhe in Oktaven** (0…3 ⇒ 0…+36 st, Default 1,5 ⇒ +18 st), `Pitch Decay` die Dauer des exponentiellen Abfalls (`exp(-4.605·u·2^curve)`), `Pitch Attack` die Haltezeit auf dem Maximum vor dem Abfall. Vor der Korrektur lief der Tonfall nach **oben** — die Ursache der Nutzerbeschwerde „zu hochgepatcht".
 - **TR-808**: Reiner Sinus ohne Filterung, schneller Pitch-Decay (20–70 ms) für den typischen Click, langer Decay für den „Jeep Drone“.
 
 ### Hollow Steel / Industrial Kick
@@ -295,139 +295,150 @@ g++ /tmp/user/1000/opencode/test_vst3_load.cpp -o /tmp/user/1000/opencode/test_v
 # Erwartet: loaded=0x… GetPluginFactory=0x…
 ```
 
-## Parameter (komplett, 1229)
+## Parameter (automatisch generiert, 543)
+
+Diese Tabellen werden **aus dem Quelltext erzeugt** (Review 2026-11-13, M11) und
+können nicht mehr veralten:
+
+```
+python3 Scripts/gen_param_docs.py          # Tabellen auf stdout
+python3 Scripts/update_readme_params.py    # README aktualisieren
+```
 
 Quelle der Defaults: `DefaultValues` in `Source/Parameters/ParameterLayout.h`;
 Bereiche und Schrittweiten aus dem APVTS-Layout in
-`Source/Parameters/ParameterLayout.cpp` (Stand 2026-11-12).
+`Source/Parameters/ParameterLayout.cpp` (Stand 2026-11-13).
 
 ### Membrane / Physical Model
 
-| ID                    | Bereich       | Default | Bedeutung                       |
-| --------------------- | ------------- | ------- | ------------------------------- |
-| Membrane Tension      | 0–1           | 0.50    | Spannung T [N/m]                |
-| Membrane Radius       | 0.05–0.5 m    | 0.15    | Radius (D = 2·R)                |
-| Membrane Mass         | 0.1–2.0 kg/m² | 1.00    | Flächenmasse σ                  |
-| Membrane Damping      | 0–1           | 0.30    | Abschwächung                    |
-| Membrane Modes        | 1–12          | 5       | Anzahl Modi                     |
-| Fundamental           | 25–180 Hz     | 60 Hz   | Sweet Spot 40–50 Hz             |
-| Membrane Nonlinearity | 0–1           | 0.15    | Pitch-Glide bei hoher Amplitude |
-| Membrane Stiffness    | 0–1           | 0.15    | Steifigkeit / Obertön-Anteil    |
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `membraneTension` | 0–1 | 0.5 | 0.0–1.0 |
+| `membraneRadius` | 0.05–0.5 | 0.22 | 0.05–0.5 m |
+| `membraneMass` | 0.1–2 | 0.8 | 0.1–2.0 kg/m² |
+| `membraneDamping` | 0–1 | 0.45 | 0.0–1.0 |
+| `membraneModes` | 1–12 | 4.0 | 1–24 |
+| `fundamentalHz` | 25–180 | 46.25 | 30–120 Hz |
+| `membraneNonlinearity` | 0–2 | 0.50 | 0.0–1.0 |
+| `membraneStiffness` | 0–1 | 0.10 | 0.0–1.0 |
 
 ### Hollow Steel / Tube Resonance
 
-| ID                   | Bereich   | Default | Bedeutung                              |
-| -------------------- | --------- | ------- | -------------------------------------- |
-| Tube Resonance Freq  | 40–400 Hz | 120 Hz  | Hohlkörper-Resonanz, Ratio 2 bei 60 Hz |
-| Tube Resonance Q     | 0.5–20    | 8       | Güte / Schmalheit des Picks            |
-| Tube Resonance Level | 0–1       | 0.40    | Anteil Hohlkörper                      |
-| Tube Coupling        | 0–1       | 0.50    | Kopplungsstärke Membran↔Röhre          |
-| Hollow Metallic      | 0–1       | 0.30    | Metallischer Hohlklanganteil           |
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `tubeResonanceFreq` | 40–400 | 70.0 | 40–300 Hz |
+| `tubeResonanceQ` | 0.5–20 | 2.5 | 0.5–20 |
+| `tubeResonanceLevel` | 0–1 | 0.15 | 0.0–1.0 |
+| `tubeCoupling` | 0–1 | 0.30 | 0.0–1.0 |
+| `hollowMetallic` | 0–1 | 0.08 | 0.0–1.0 |
 
 ### Pitch Envelope (TR-909/808)
 
-| ID           | Bereich    | Default | Bedeutung                 |
-| ------------ | ---------- | ------- | ------------------------- |
-| Pitch Attack | 0.1–50 ms  | 0.2 ms  | Glissando-Geschwindigkeit |
-| Pitch Decay  | 20–1500 ms | 60 ms   | exponentieller Decay      |
-| Pitch Depth  | 0–2        | 0.80    | Glide-Tiefe (+24 st max)  |
-| Pitch Curve  | -1–1       | 0.00    | Kurven-Form               |
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `pitchEnvAttack` | 0.1–50 | 0.2 | 0.1–50 ms |
+| `pitchEnvDecay` | 20–1500 | 45.0 | 20–1000 ms |
+| `pitchEnvDepth` | 0–3 | 1.50 | 0.0–1.0 |
+| `pitchEnvCurve` | -1–1 | 0.0 | -1.0–1.0 |
 
-Der Decay ist derzeit linear; der exponentielle Decay (SND-022) ist **in Arbeit**.
+**Tonfall nach unten** (TR-909/808): Der Oszillator startet bei `2^PitchDepth × f0`
+und fällt exponentiell auf `f0`. `Pitch Attack` hält den Startton kurz, `Pitch Decay`
+bestimmt die Abfalldauer, `Pitch Curve` biegt die Abfallrate (`2^curve`).
 
 ### Click / Beater
 
-| ID                    | Bereich          | Default | Bedeutung          |
-| --------------------- | ---------------- | ------- | ------------------ |
-| Click Level           | 0–2              | 0.80    | Anschlag-Pegel     |
-| Click Decay           | 0.5–30 ms        | 4.0 ms  | Decay              |
-| Click Tone            | 0–1              | 0.35    | Dunkel → Hell      |
-| Click Distortion      | 0–1              | 0.20    | Soft-Saturation    |
-| Click Beater Material | Soft/Medium/Hard | Medium  | Anschlags-Material |
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `clickLevel` | 0–2 | 0.38 | 0.0–1.0 |
+| `clickDecay` | 0.5–30 | 4.0 | 0.5–20 ms |
+| `clickTone` | 0–1 | 0.22 | 0.0–1.0 |
+| `clickDistortion` | 0–1 | 0.2 | 0.0–1.0 |
+| `clickBeaterMaterial` |  |  | Choice: Soft/Medium/Hard |
 
 ### Body
 
-| ID          | Bereich    | Default | Bedeutung    |
-| ----------- | ---------- | ------- | ------------ |
-| Body Level  | 0–1        | 0.65    | Körper-Pegel |
-| Body Attack | 0.5–10 ms  | 0.8 ms  | Attack       |
-| Body Decay  | 50–4000 ms | 450 ms  | Decay        |
-| Body Tuning | 0.5–2      | 1.00    | Stimmfaktor  |
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `bodyLevel` | 0–1 | 0.35 | 0.0–1.0 |
+| `bodyAttack` | 0.5–10 | 0.8 | 0.5–10 ms |
+| `bodyDecay` | 50–4000 | 500.0 | 50–2000 ms |
+| `bodyTuning` | 0.5–2 | 2.0 | 0.5–2.0 |
 
 ### Sub Oscillator (40–60 Hz Sweet Spot)
 
-| ID         | Bereich              | Default | Bedeutung  |
-| ---------- | -------------------- | ------- | ---------- |
-| Sub Level  | 0–1                  | 0.30    | Sub-Pegel  |
-| Sub Decay  | 50–3000 ms           | 350 ms  | Decay      |
-| Sub Detune | -50–+50 cents        | 0       | Detuning   |
-| Sub Shape  | Sine/Triangle/Square | Sine    | Wellenform |
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `subLevel` | 0–1 | 0.46 | 0.0–1.0 |
+| `subDecay` | 50–3000 | 520.0 | 50–3000 ms |
+| `subDetune` | -50–50 | 0.0 | -50–+50 cents |
+| `subShape` |  |  | Choice: Sine/Triangle/Square |
+| `subRatio` |  |  | Choice: 0.5 / 1.0 (SND-056/049) |
 
 ### Drive / Saturation (inkl. Wave-Folding)
 
-| ID              | Bereich                        | Default | Bedeutung                    |
-| --------------- | ------------------------------ | ------- | ---------------------------- |
-| Drive Amount    | 0–1                            | 0.40    | Verzerrungsmenge             |
-| Drive Mix       | 0–1                            | 0.45    | Trocken/Nass-Mischung        |
-| Drive Character | Tube/Diode/Fuzz/WaveFold/Alias | Tube    | Verzerrungs-Typ              |
-| Drive Pre HP    | 0–1                            | 0.0     | Pre-Drive Highpass (0 = aus) |
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `driveAmount` | 0–1 | 0.4 | 0.0–1.0 |
+| `driveMix` | 0–1 | 0.45 | 0.0–1.0 |
+| `driveCharacter` |  |  | Choice: Tube/Diode/Fuzz/Wave Fold/Alias |
+| `drivePreHP` | 0–1 | 0.0 | 0.0–1.0 |
 
 ### EQ (Sub 40–60, Punch 80–100 & 2–5 kHz, Air)
 
-| ID            | Bereich     | Default | Bedeutung                |
-| ------------- | ----------- | ------- | ------------------------ |
-| EQ Sub Freq   | 20–200 Hz   | 50 Hz   | Sub-Frequenz (trackt f0) |
-| EQ Sub Gain   | -12–12 dB   | +2 dB   | Sub-Gain                 |
-| EQ Punch Freq | 500–8000 Hz | 2800 Hz | Punch-Frequenz           |
-| EQ Punch Gain | -12–12 dB   | +3 dB   | Punch-Gain               |
-| EQ Air Freq   | 4–16 kHz    | 10 kHz  | Air-Frequenz             |
-| EQ Air Gain   | -12–12 dB   | 0 dB    | Air-Gain                 |
-| EQ Rumble HP  | 15–120 Hz   | 25 Hz   | Rumble-Cut               |
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `subLevel` | 0–1 | 0.46 | 0.0–1.0 |
+| `subDecay` | 50–3000 | 520.0 | 50–3000 ms |
+| `subDetune` | -50–50 | 0.0 | -50–+50 cents |
+| `subShape` |  |  | Choice: Sine/Triangle/Square |
+| `subRatio` |  |  | Choice: 0.5 / 1.0 (SND-056/049) |
 
 ### Compressor
 
-| ID             | Bereich    | Default | Bedeutung   |
-| -------------- | ---------- | ------- | ----------- |
-| Comp Threshold | -60–0 dB   | -8 dB   | Schwelle    |
-| Comp Ratio     | 1–20 :1    | 3:1     | Verhältnis  |
-| Comp Attack    | 0.1–100 ms | 10 ms   | Attack      |
-| Comp Release   | 10–1000 ms | 120 ms  | Release     |
-| Comp Knee      | 0–12 dB    | 6 dB    | Knie        |
-| Comp Makeup    | -12–+24 dB | 0 dB    | Makeup-Gain |
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `compThreshold` | -60–0 | -10.0 | -60–0 dB |
+| `compRatio` | 1–20 | 2.5 | 1–20 :1 |
+| `compAttack` | 0.1–100 | 6.0 | 0.1–100 ms |
+| `compRelease` | 10–1000 | 240.0 | 10–1000 ms |
+| `compKnee` | 0–12 | 6.0 | 0–12 dB |
+| `compMakeup` | -12–24 | 0.0 | -12–+24 dB |
+| `compMix` | 0–1 | 1.0 | 0–1 (SND-090/180) |
+| `compAutoMakeup` | Bool | aus | Auto gain reduction makeup |
 
 ### Output / Spatial
 
-| ID                | Bereich    | Default | Bedeutung            |
-| ----------------- | ---------- | ------- | -------------------- |
-| Output Gain       | -60–+12 dB | 0 dB    | Ausgangs-Pegel       |
-| Output Pan        | -1–1       | 0       | Panorama             |
-| Output Width      | 0–1        | 1.0     | Stereobreite (M/S)   |
-| Output Mono Below | 40–200 Hz  | 150 Hz  | Mono-Kreuzung (Club) |
-| Output Clip       | 0–1        | 0.35    | Soft-Clip            |
-| Output Limiter    | 0–1        | 0.15    | Peak-Limiter         |
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `outputGain` | -60–12 | 0.0 | -60–+12 dB |
+| `outputPan` | -1–1 | 0.0 | -1–+1 |
+| `outputWidth` | 0–1 | 1.0 | 0–1 |
+| `outputMonoBelow` | 40–200 | 150.0 | 40–200 Hz |
+| `outputClip` | 0–1 | 0.0 | 0–1 |
+| `outputLimiter` | 0–1 | 0.15 | 0–1 |
 
 ### Room / Late Rumble (Hollow Industrial)
 
-| ID          | Bereich    | Default | Bedeutung      |
-| ----------- | ---------- | ------- | -------------- |
-| Room Level  | 0–1        | 0.0     | Raum-Charakter |
-| Room Decay  | 50–2000 ms | 350 ms  | Raum-Decay     |
-| Room Rumble | 0–1        | 0.30    | Spätes Rumble  |
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `roomLevel` | 0–1 | 0.0 | 0.0–1.0 |
+| `roomDecay` | 50–2000 | 350.0 | 100–1000 ms |
+| `roomRumble` | 0–1 | 0.3 | 0.0–1.0 |
 
 ### Reverb / Modulation Stage (Hollow Material Verbs)
 
-| ID               | Bereich                                      | Default | Bedeutung                 |
-| ---------------- | -------------------------------------------- | ------- | ------------------------- |
-| Reverb Material  | None/Wood/Metal/Plastic/Concrete/Glass/Stone | None    | Hohlkörper-Material       |
-| Reverb Pre-Delay | 0–150 ms                                     | 30 ms   | Vorverzögerung            |
-| Reverb Decay     | 200–5000 ms                                  | 1200 ms | RT60 Basis (Material-Mul) |
-| Reverb Size      | 0–1                                          | 0.50    | Raumgröße                 |
-| Reverb Damping   | 0–1                                          | 0.30    | High-Freq Absorption      |
-| Reverb Mix       | 0–1                                          | 0.15    | Wet/Send-Return           |
-| Reverb Low Cut   | 20–500 Hz                                    | 150 Hz  | Rumble-Cut im Reverb      |
-| Reverb High Cut  | 1000–16000 Hz                                | 6000 Hz | High-Cut im Reverb        |
-| Reverb Freeze    | On/Off                                       | Off     | Tail einfrieren           |
-| Reverb Gate      | 0–500 ms                                     | 0 ms    | Gate (0 = aus)            |
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `reverbMaterial` |  |  | Choice 0–6 |
+| `reverbPreDelay` | 0–150 | 30.0 | 0–150 ms |
+| `reverbDecay` | 200–5000 | 1200.0 | 200–5000 ms (RT60) |
+| `reverbSize` | 0–1 | 0.5 | 0–1 |
+| `reverbDamping` | 0–1 | 0.3 | 0–1 |
+| `reverbMix` | 0–1 | 0.15 | 0–1 |
+| `reverbLowCut` | 20–500 | 150.0 | 20–500 Hz |
+| `reverbHighCut` | 1000–16000 | 6000.0 | 1000–16000 Hz |
+| `reverbFreeze` | Bool | aus | Freeze reverb tail |
+| `reverbGate` | 0–500 | 0.0 | 0–500 ms (0=off, aktiv 10–500) |
 
 ### Material Room + Sub Grumble (Wet-Only, kein Druckverlust)
 
@@ -436,21 +447,22 @@ Damping aus α und Dichte). Das Modul liefert **ausschließlich Wet**; der Dry-B
 unangetastet, der Wet-Return hat einen 100-Hz-Highpass 2. Ordnung (keine Sub-Antilphase). Layer:
 Kick / Rumble / beides.
 
-| ID                    | Bereich                                  | Default    | Bedeutung                                  |
-| --------------------- | ---------------------------------------- | ---------- | ------------------------------------------ |
-| MaterialRoom Material | Water/Wood/Plastic/Steel/Concrete/Fabric | Wood       | c: 1480/3960/2750/5940/3700/250 m/s        |
-| MaterialRoom Size     | 1–30 m                                   | 8.0 m      | Raumtiefe; Tap-Delay = L/c                 |
-| MaterialRoom Mix      | 0–1                                      | 0.0        | Wet-Return                                 |
-| MaterialRoom Layer    | Kick/Rumble/Both                         | Both       | Welche Eingänge den Raum speisen           |
-| MaterialRoom Width    | 0–1                                      | 0.50       | M/S-Breite des Wet (0.5 neutral, Cap 1.75) |
-| Grumble Level         | 0–1                                      | 0.0        | Sub-Grummen (unabhängig vom Room-Mix)      |
-| Grumble Freq          | 20–120 Hz                                | 45 Hz      | Sub-Oszillator                             |
-| Grumble Rate          | 0.05–8 Hz                                | 0.5 Hz     | Pan-LFO-Frequenz                           |
-| Grumble Depth         | 0–1                                      | 0.5        | Pan-Schwung (0 = Mitte A/B)                |
-| Grumble Pan A / B     | -1–1                                     | -0.5 / 0.5 | Endpunkte A → B                            |
-| Grumble Wave          | Sine/Triangle/Square                     | Sine       | Sub-Oszillator-Waveform                    |
-| Grumble Pan Wave      | Sine/Triangle/Square/Saw                 | Sine       | Pan-LFO-Waveform                           |
-| Grumble Decay         | 0.1–2 s                                  | 0.5 s      | Hüllkurve des Grummens                     |
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `materialRoomMaterial` |  |  | Choice: Water/Wood/Plastic/Steel/Concrete/Fabric |
+| `materialRoomSize` | 1–30 | 8.0 | 1–30 m |
+| `materialRoomMix` | 0–1 | 0.0 | 0–1 |
+| `materialRoomLayer` |  |  | Choice: Kick/Rumble/Both |
+| `materialRoomWidth` | 0–1 | 0.5 | 0–1 |
+| `grumbleLevel` | 0–1 | 0.0 | 0–1 |
+| `grumbleFreq` | 20–120 | 45.0 | 20–120 Hz |
+| `grumbleRate` | 0.05–8 | 0.5 | 0.05–8 Hz |
+| `grumbleDepth` | 0–1 | 0.5 | 0–1 |
+| `grumblePanA` | -1–1 | -0.5 | -1–+1 |
+| `grumblePanB` | -1–1 | 0.5 | -1–+1 |
+| `grumbleWave` |  |  | Choice: Sine/Triangle/Square |
+| `grumblePanWave` |  |  | Choice: Sine/Triangle/Square/Saw |
+| `grumbleDecay` | 0.1–2 | 0.5 | 0.1–2 s |
 
 Hinweis (MR-003/MR-004/MR-006): Steel ist ein **metallischer Resonator**, kein Hall. Der Wet-Pfad ist mit einem LowCut bei 100 Hz (2. Ordnung) geschuetzt, damit er den 20–100-Hz-Druck des Dry-Signals nicht ausloescht oder aufblaeht; Sub-Druck kommt ausschliesslich aus dem Dry-Signal. Bei hohem Mix bleibt trotzdem Gain-Staging sinnvoll. α unverändert. Modell ist **phänomenologisch** (Material-Charakter als Klangmetapher), keine raumakustische Simulation. **MR-013:** Width 0.5 = neutral, Seitenfaktor gekappt auf max 1.75 bei Width 1.0. **MR-020/056:** `IN KICK = CompOut` (Pre-Output), `IN RUMBLE = RoomOut` (Room-Tail; bei ROOM-Off stumm). **MR-030:** Grumble-Pan nutzt konstante Pan-Leistung (cos/sin). **MR-031:** Grumble-Pan geslewtes (~5 ms). **MR-033:** `grumbleLevel > 0.7` kann stark im Sub auftragen — Gain-Staging beachten. **MR-035:** starker Kick-Transient randomisiert Grumble-Phase deterministisch per LCG. **MR-043:** Size-Sweep erzeugt metallischen Comb-Sweep/Wub. **MR-050/053:** verifiziert (Verhalten entspricht Spezifikation). **MR-051:** **CV:** Velocity → `grumbleLevel` (über Parameter-CV/Modulation). **MR-052:** Pan A/B Endpunkte, Depth 0 = Mitte zwischen A und B. **MR-095:** Layer Rumble hängt von RoomOut/Room ab; bei ausgeschaltetem ROOM ist der Rumble-Eingang stumm. **MR-040/041/042/005:** bewusst unverändert (Materialtabelle/α, kein Dry-Eingriff, kein Fan-in-Normalisierung, keine impliziten Claims).
 
@@ -511,33 +523,25 @@ Alle Layer-Werte sind **abgeleitet**; der einzige Regler ist der Amount:
 
 ### Step Sequencer (16 Schritte)
 
-| ID                                   | Bereich                      | Default           | Bedeutung                                                         |
-| ------------------------------------ | ---------------------------- | ----------------- | ----------------------------------------------------------------- |
-| Sequencer BPM                        | 40–240 BPM                   | 128               | Tempo                                                             |
-| Sequencer Play                       | an/aus                       | aus               | Start/Stop                                                        |
-| Sequencer Steps                      | 1–64                         | 16                | Anzahl Schritte                                                   |
-| Sequencer Swing                      | 0–0.75                       | 0                 | Swing-Groove (50–75 %)                                            |
-| Sequencer Sync                       | Internal/Host                | Internal          | Host-Transport-Sync                                               |
-| Sequencer Grid                       | 1/16, 1/8T, 1/16T            | 1/16              | Notenraster                                                       |
-| Sequencer Pattern                    | A–D                          | A                 | Aktives Pattern                                                   |
-| Sequencer Chain                      | 0–8                          | 0 (aus)           | Pattern-Kette                                                     |
-| Sequencer Clock                      | an/aus                       | aus               | MIDI-Clock/Start/Stop                                             |
-| Step Vel (0–15)                      | 0–1                          | 1.0 (alle)        | Schlagstärke                                                      |
-| Step Gate (0–15)                     | an/aus                       | Steps 1/5/9/13 an | Schritt an/aus                                                    |
-| Step Pitch (0–15)                    | -24–+24 st                   | 0                 | Pitch-Offset (Halbtöne)                                           |
-| Step Ratchet/Flam/Probability/Length | 1–4 / 0–50 ms / 0–1 / 0.25–4 | 1 / 0 / 1 / 1     | 4 Patterns × 64 Slots (Parameter vorhanden; Step-Editor-UI offen) |
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `sequencerSyncMode` |  |  | Choice: Internal/Host (SND-136) |
+| `sequencerGrid` |  |  | Choice: 1/16, 1/8T, 1/16T (SND-144) |
+| `sequencerPattern` |  |  | Choice: A–D (SND-146) |
+| `sequencerChain` | 0–8 | 0.0 | 0–8 (SND-146) |
+| `sequencerClockOut` | Bool | aus | Send MIDI clock/start/stop |
 
 ### Global
 
-| ID                   | Bereich         | Default       | Bedeutung                 |
-| -------------------- | --------------- | ------------- | ------------------------- |
-| Root Note            | 0–127           | F#1 (MIDI 30) | Grundnote = f0            |
-| Velocity Sensitivity | 0–1             | 0.60          | Velocity-Empfindlichkeit  |
-| Key Root             | 0–11            | 0 (C)         | Scale-Grundton            |
-| Scale                | Chromatic/Minor | Chromatic     | Snap für f0/Step-Pitch    |
-| Glide                | 0–200 ms        | 0             | Portamento Step-Pitch     |
-| Velocity to Pitch    | 0–1             | 0             | zusätzlicher Pitch-Anteil |
-| Tube Track           | an/aus          | an            | Tube-Resonanz folgt f0    |
+| Parameter | Werte | Default | Bedeutung |
+| --------- | ----- | ------- | --------- |
+| `rootNote` |  |  | 0–127 note |
+| `velocitySensitivity` | 0–1 | 0.6 | 0.0–1.0 |
+| `keyRoot` | 0–11 | 0.0 | 0–11 pitch class (SND-132) |
+| `scale` |  |  | Choice: Chromatic/Minor (SND-132) |
+| `glideMs` | 0–200 | 0.0 | 0–200 ms (SND-135) |
+| `velToPitch` | 0–1 | 0.0 | 0–1 (SND-030) |
+| `tubeTrack` | Bool | an | Tube resonance tracks f0 |
 
 ## GUI-Features
 
@@ -589,22 +593,37 @@ Alle Layer-Werte sind **abgeleitet**; der einzige Regler ist der Amount:
   `juce::AudioDeviceManager::addAudioCallback` ← `CERNStandaloneApp::initialise`
   (Ursache außerhalb GUI-Scope).
 
-## Factory Presets (7)
+## Factory Presets (16)
 
-| Preset               | Kategorie       | Charakter                                                                                 |
-| -------------------- | --------------- | ----------------------------------------------------------------------------------------- |
-| Deep Techno Kick     | Factory (Basis) | Trockener Deep-Techno-Kick (~46 Hz): kurzer Pitch-Snap, Concrete-Raum, moderate Sättigung |
-| Hard Acid Kick       | Factory (Basis) | Harter Acid-Kick (55 Hz): harter Beater, Diode-Drive mit Pre-HP, Punch bei 3 kHz          |
-| 808 Boomy            | Factory (Basis) | Boomy 808 (~41 Hz): langer Body, Wood-Reverb, viel Room-Rumble                            |
-| Tight Techno         | Factory (Basis) | Kurz und trocken (49 Hz): schneller Pitch-Decay, kein Reverb, straffe Kompression         |
-| CV Pulse Kick        | Factory (CV)    | Modulierter Kick (~52 Hz): Body-Level → Drive-Mix, Higgs-Setup                            |
-| Higgs Mod Kick       | Factory (Higgs) | Massiver Higgs-Kick (~46 Hz): langer Pitch-Glide, großes Body-/Sub-Fundament, 4 CV-Kabel  |
-| Parameter Patch Kick | Factory (Patch) | Diode-Kick (~58 Hz): Pre-HP-Drive, Punch bei 3 kHz, Higgs-Stärke → Boson-Q                |
+| Preset                  | Charakter                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------ |
+| Deep Techno Kick        | Trockener Deep-Techno-Kick (46,25 Hz): Pitch-Snap von +15,6 st, Concrete-Raum, moderate Sättigung |
+| Hard Acid Kick          | Harter Acid-Kick (46,25 Hz): harter Beater, Diode-Drive mit Pre-HP, Punch bei 3 kHz        |
+| 808 Boomy               | Boomy 808 (46,25 Hz): langer Shell-Body (92,5 Hz), Wood-Reverb, Room-Rumble                |
+| Tight Techno            | Kurz und trocken: schneller Pitch-Abfall, kein Reverb, straffe Kompression                 |
+| CV Pulse Kick           | Modulierter Kick: Body-Level → Drive-Mix plus Makro-Kabel                                  |
+| Higgs Mod Kick          | Massiver Higgs-Kick: langer Pitch-Abfall, großes Shell-/Sub-Fundament, 4 CV-Kabel          |
+| Parameter Patch Kick    | Diode-Kick: Pre-HP-Drive, Punch bei 3 kHz, Higgs-Stärke → Boson-Q                          |
+| Underground Techno      | Sub-lastiger, dichter Club-Kick (Analyse eines Referenztracks)                             |
+| Darker Sub Roller       | Sehr dunkel, viel Sub, wenig Click                                                         |
+| Punch-roller            | Maximaler Punch: kurzer Sweep, harter Beater, Transient +3 dB                              |
+| Low-end-roller          | Schwerer Roller mit langem Sub/Tube-Anteil                                                 |
+| **Detroit 909 Classic** | **50 Hz** (Original-909-Lage), +21,6 st Starttonfall, harter Beater, kein Rumble            |
+| **Dub Chord Kick**      | Langer Shell-Body (900 ms), Tube bei 92,5 Hz, Concrete-Reverb 1,8 s                        |
+| **Hard Techno Distorted** | Wave-Fold-Sättigung, Drive-Pre-HP 0,35, trockener Raum                                    |
+| **Minimal Click Kick**  | Nur Click + kurzer Sub, kein Tube, kein Room – maximale Definition                          |
+| **Sub Only (23 Hz)**    | Sub-Oktave (Ratio 0,5), 700 ms Sub-Decay, Rumble-HP 18 Hz – maximaler Club-Sub             |
 
-Alle sieben Factory-Presets sind Code-Snapshots in `Source/Presets/PresetManager.cpp`;
-es gibt keine separate `factory_presets.json`. Die drei CV-Presets enthalten
-Higgs-Settings und Parameter-CV-Kabel. Preset-Slot 0 im Browser ist `Init`
-(SND-166); es zaehlt nicht zu den sieben Factory-Presets.
+Alle 16 Presets sind Code-Snapshots in `Source/Presets/PresetManager.cpp`; es gibt
+keine separate `factory_presets.json`. Jedes Preset enthält die 5 Makro-Kabel
+(TUNE → fundamentalHz, PUNCH → clickLevel, BOOM → subLevel, DIRT → driveAmount,
+SPACE → roomLevel), damit die Makro-Regler im Front-Panel wirklich wirken.
+Preset-Slot 0 im Browser ist `Init` (SND-166); es zählt nicht zu den Factory-Presets.
+
+**Lautheit:** alle 16 Presets sind auf **−13 LUFS** kalibriert (Messung 4 Takte
+@120 BPM, 48 kHz, BS.1770); Streuung **0,31 dB** (Grenze 1,5 dB). Die Kalibrierung
+ist reproduzierbar über `Scripts/calibrate_presets.py` (misst mit `CERNLab` und
+korrigiert `outputGain`).
 
 ## Build Targets
 
@@ -773,6 +792,77 @@ Die vollständige, priorisierte Sound-Review (DSP, Presets, GUI, Doku) liegt in
 Alle 327 Findings sind in `TODO.md` im Abschnitt „Sound-Review 2026-11-12“
 getrackt; die fünf Dokumentations-Findings SND-186…SND-190 sind mit diesem
 Stand erledigt.
+
+## Sound-Engineer-Review 2026-11-13 (Vollreview, umgesetzt)
+
+Reviewer-Rolle: Tontechnik · PA-Technik · Techno-Produzent · Modular-Synth.
+Vollständiger Report: `/tmp/user/1000/opencode/review-vst-full.md`.
+Es wurden **alle** Befunde umgesetzt (C1–C4, H1–H7, M1–M16, N1–N4).
+
+### Kritisch – Grundton & Gain-Staging
+
+| Befund | Problem | Umsetzung |
+| ------ | ------- | --------- |
+| **C1** Pitch-Envelope lief **nach oben** | `exp2(depth·env)` ⇒ Tonfall **auf** +24 st, „zu hochgepatcht" | Tonfall **nach unten**: `ratio = 1 + (2^depth − 1)·sweep`, `sweep` 1→0 exponentiell, `depth` 0–3 Oktaven (Default 1,5 ⇒ +18 st Starttonfall) |
+| **C2** EQ-Sub war funktional tot | 2-poliger LP auf f0, **parallel** addiert (−90° Phase) + Makeup ⇒ +3 dB ⇒ **−0,69 dB** | RBJ-**Low-Shelf** (S = 1,0) bei f0, direkt auf das Direktsignal, Makeup entfällt, 0 dB **bit-transparent**, +3 dB ⇒ ehrlich **+3 dB** |
+| **C3** Output-Clip war ein Verstärker | `tanh(k·x)·1/tanh(k)` ⇒ Kleinsignal **+7,7 dB** (`outputClip 0,35`) | Slope-1-Softclip `y = x/√(1+(x/ceiling)²)`, `outputClip` steuert nur noch das **Ceiling** (1,0 → 0,5), Default **0** |
+| **C4** Drive machte lauter | gesättigtes Band mit Slope **4,2** ⇒ +12,5 dB (gesamt +7,75 dB) | Alle Charaktere (Tube/Diode, WaveFold, Alias) auf **Slope 1** (`tanh(k·x)/k`), Drive färbt, verstärkt nicht |
+
+### Hoch
+
+| Befund | Umsetzung |
+| ------ | --------- |
+| **H1** Membrane: Fundamental war der **leiseste** Modus | `weight0 = 1.2 − 0.6·massNorm` ⇒ Fundamental dominiert Modus 1 (73,7 Hz); `membraneMass` Default 0,8 |
+| **H2** Body war ein **zweiter Sub-Sinus** auf f0 | Body = 2-poliger RBJ-Bandpass (Q ≈ 1,4) bei `f0·bodyTuning` + 25 % Sinus ⇒ **Shell-Band 92,5 Hz** (`bodyTuning` 2,0, `bodyLevel` 0,35) |
+| **H3** Oversampling aus ⇒ Aliasing im Anschlag-Band | `oversampleEnabled` Default **an**; Latenz wird dem Host gemeldet (`setLatencySamples`) |
+| **H4** Limiter sah keine Inter-Sample-Peaks | True-Peak-Detektor mit **4× Oversampling**, stereo-linked; `getTruePeakDb()` im GUI |
+| **H5** Room-Wet enthielt den **vollen Sub** (Kammfilter-Nullen bei 27,8/55,6/83,3 Hz) | Tap-Summe auf 1,0 normiert, **70-Hz-HP** im Send, Taps 41/53/67/79 ms |
+| **H6** Patch ohne Weg zum Output = Stille | PatchView meldet „NO PATH TO OUTPUT" |
+| **H7** Preset-Lautheit handkalibriert (7,1 dB Spanne), Init ≠ Presets | einheitlicher Output-Pfad, automatische Kalibrierung, Init an Presets angeglichen |
+
+### Mittel / Niedrig
+
+**M1** Grumble mono-pegelneutral (Pan-LFO moduliert die Mono-Summe nicht mehr) ·
+**M2** MaterialRoom-Spread ±3 % → ±0,3 % · **M3** globales `duckDepth` wirkt nur noch
+auf die **FX** (Room/Higgs/Reverb/MaterialRoom) – der trockene Kick duckt sich nicht
+mehr selbst · **M4** CV-Amount-Default 1,0 → **0,25**, Preset-Kabel auf echte Quellen,
+5 Makro-Kabel pro Preset · **M5** `clickNoiseMix` als Parameter, Tick folgt dem
+Pitch-Sweep (30 %) · **M6** Tube-Ausgang ohne ×4 (Slope 1) · **M7** `hollowMetallic`
+Slope 1 · **M8** Kompressor-Attack 15 → 6 ms, Release 120 → 240 ms · **M9**
+Modus-Tabelle auf **16 Bessel-Modi** erweitert (Membraninhalt bis 5,83·f0 ≈ 270 Hz) ·
+**M10** Layering-L1 kürzer (`subDecay × 0,9`) · **M11** README-Parametertabellen werden
+aus dem Quelltext **generiert** (`Scripts/gen_param_docs.py`,
+`Scripts/update_readme_params.py`) · **M12** True-Peak, Limiter-GR und Clip-GR im
+Meter-Strip · **M13** `compMix`/`compAutoMakeup` in der Sektion „Comp" ·
+**M14** Sequencer-Slots 64 → **16** (768 zuvor tote Parameter entfernt, 1311 → 543) ·
+**M15** Nichtlinearität pro Mode, amplitudengetragen · **M16** Sub startet mit
+`velocity` (nicht 0,8×) · **N3** Clip-Meter wird pro Block zurückgesetzt ·
+**N4** dokumentiert.
+
+### Abweichungen von der Review-Empfehlung (bewusst)
+
+- **C2:** Der RBJ-Low-Shelf liefert am Eckpunkt f0 konstruktiv nur die Hälfte des
+  asymptotischen Gains. Der interne Gain wird deshalb verdoppelt, damit `eqSubGain`
+  **bei f0** ehrlich ist (gemessen: +2,99 dB bei +3 dB, 0 dB bit-transparent).
+- **C3:** Das Limiter-Ceiling ist *relativ* zum Clip-Ceiling definiert
+  (`clipCeiling · 10^(−3·amount/20)`), sonst könnte der Limiter bei aktivem Clipper
+  nie eingreifen.
+- **N1:** `OversamplingHelper.h` ist **nicht** tot – dort liegt `StreamingTwoX`, das
+  der Drive-/Clip-Pfad nutzt. Die Datei bleibt.
+- **N2:** `roomSync` ist öffentliche Engine-API (`setRoomSync`), aktuell fest auf
+  „frei"; nicht entfernt, sondern dokumentiert.
+- **H4:** Der True-Peak-Detektor arbeitet mit kubischer Interpolation (4 Punkte je
+  Sample) ohne Lookahead – kein zusätzlicher Sample Latenz für alle Hosts.
+
+### Messtechnik
+
+`Source/Lab/LabRenderer.cpp` (Target `CERNLab`) rendert alle Factory-Presets als WAV und
+misst LUFS (stereo), LUFS (Mono-Summe), Peak, Crest-Faktor sowie die Loudness-Differenz
+mit/ohne Layering:
+
+```
+./build/Source/CERNLab /tmp/lab 100 8     # Ordner, Layering-Amount %, Dauer (s)
+```
 
 ## Lizenz
 
