@@ -29,6 +29,10 @@ public:
     /** Abgeleitete Layer-Werte fuer die Legende. */
     void setLayerInfo (const LayeringStage::Info& newInfo);
 
+    /** Modul-Beitrags-Taps (Membrane/Body/Sub/Click) fuer das Modul-Overlay. */
+    void setModuleSamples (const std::vector<float>& membrane, const std::vector<float>& body,
+                           const std::vector<float>& sub, const std::vector<float>& click);
+
     /** Baut Checkbox "LAYERING ENABLED" + Regler "AMOUNT" in die Kopfzeile ein. */
     void attachLayeringControl (juce::AudioProcessorValueTreeState& apvts,
                                 const juce::String& enabledParameterId,
@@ -47,8 +51,13 @@ private:
     std::vector<float> samples;
     std::vector<float> layerLowSamples;
     std::vector<float> layerHighSamples;
+    std::vector<float> moduleMembraneSamples;
+    std::vector<float> moduleBodySamples;
+    std::vector<float> moduleSubSamples;
+    std::vector<float> moduleClickSamples;
     LayeringStage::Info layerInfo;
 
+    juce::TextButton moduleToggle { "MOD" };
     juce::ToggleButton layeringToggle { "LAYERING ENABLED" };
     juce::Slider amountSlider { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
 

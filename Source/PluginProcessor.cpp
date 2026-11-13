@@ -297,7 +297,12 @@ void CERNAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
 
         const float* layerLowTap  = engine.getLayerTapLow();
         const float* layerHighTap = engine.getLayerTapHigh();
+        const float* memberTap  = engine.getModuleTapMembrane();
+        const float* bodyTap    = engine.getModuleTapBody();
+        const float* subTap     = engine.getModuleTapSub();
+        const float* clickTap   = engine.getModuleTapClick();
         const bool hasLayerTaps = engine.getLayerTapSize() >= numSamples;
+        const bool hasModuleTaps = hasLayerTaps;
 
         for (int i = 0; i < numSamples; i += DisplayBuffers::waveformDecimation)
         {
@@ -312,6 +317,15 @@ void CERNAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
                     .store (layerLowTap[i], std::memory_order_relaxed);
                 displayBuffers.layerHigh[(size_t) (writePos & mask)]
                     .store (layerHighTap[i], std::memory_order_relaxed);
+
+                displayBuffers.moduleMembrane[(size_t) (writePos & mask)]
+                    .store (memberTap[i], std::memory_order_relaxed);
+                displayBuffers.moduleBody[(size_t) (writePos & mask)]
+                    .store (bodyTap[i], std::memory_order_relaxed);
+                displayBuffers.moduleSub[(size_t) (writePos & mask)]
+                    .store (subTap[i], std::memory_order_relaxed);
+                displayBuffers.moduleClick[(size_t) (writePos & mask)]
+                    .store (clickTap[i], std::memory_order_relaxed);
             }
 
             ++writePos;

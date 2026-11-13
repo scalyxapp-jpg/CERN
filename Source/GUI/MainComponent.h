@@ -13,6 +13,7 @@
 #include "GUI/HiggsField3D.h"
 #include "GUI/LogoComponent.h"
 #include "GUI/MixerView.h"
+#include "GUI/PresetThumbnails.h"
 #include "GUI/PatchView.h"
 #include "GUI/SectionPanel.h"
 #include "GUI/SpectrumAnalyzer.h"
@@ -76,6 +77,7 @@ private:
     juce::AudioDeviceManager* audioDeviceManager;
 
     std::unique_ptr<HeaderBar> header;
+    std::unique_ptr<PresetThumbnailCache> presetThumbnails;
     std::unique_ptr<FooterSequencer> footer;
     std::unique_ptr<MacroPanel> macroPanel;
     std::unique_ptr<MeterDisplay> meterDisplay;
@@ -214,6 +216,12 @@ public:
     void trigger();
     void selectRelativePreset (int delta);
 
+    /** Setzt den Cache fuer die Preset-Wellenform-Vorschau (MainComponent). */
+    void setPresetThumbnailCache (PresetThumbnailCache* cache) { thumbnailCache = cache; }
+
+    /** Aktualisiert das Vorschaubild fuer das geladene Preset. */
+    void refreshPresetPreview();
+
     /** Statusmeldung an den Meter-Strip (z. B. "RANDOMIZED (tuning safe)"). */
     std::function<void(const juce::String&)> onStatus;
 
@@ -274,7 +282,9 @@ private:
     juce::AudioDeviceManager* audioDeviceManager;
 
     LogoComponent logo;
-    juce::Label presetLabel;
+    PresetPreview presetPreview;
+    PresetThumbnailCache* thumbnailCache { nullptr };
+    int thumbnailIndex { -1 };
     juce::TextButton patchButton { "PATCHBAY" };
     juce::TextButton mixerButton { "MIXER" };
     juce::TextButton triggerButton { "TRIGGER" };

@@ -167,6 +167,13 @@ MainComponent::MainComponent (CERNAudioProcessor& processorRef,
     waveformDisplay.attachLayeringControl (processor.getAPVTS(),
                                            ParameterIDs::layeringEnabled,
                                            ParameterIDs::layeringAmount);
+
+    // Preset-Vorschau (Review §7.7): 64-Punkt-Wellenform je Preset im Hintergrund.
+    presetThumbnails = std::make_unique<PresetThumbnailCache>();
+    presetThumbnails->startRendering();
+
+    if (header != nullptr)
+        header->setPresetThumbnailCache (presetThumbnails.get());
     addAndMakeVisible (spectrumAnalyzer);
     addAndMakeVisible (envelopeEditor);
 
@@ -465,6 +472,24 @@ void MainComponent::updateDisplays()
 
         waveformDisplay.setLayerSamples (lowSnapshot, highSnapshot);
         waveformDisplay.setLayerInfo (processor.getEngine().getLayering().getInfo());
+
+        // ---- Modul-Overlay: Membrane/Body/Sub/Click als eigene Kurven ----
+        std::vector<float> membraneSnapshot ((size_t) ringSize, 0.0f);
+        std::vector<float> bodySnapshot ((size_t) ringSize, 0.0f);
+        std::vector<float> subSnapshot ((size_t) ringSize, 0.0f);
+        std::vector<float> clickSnapshot ((size_t) ringSize, 0.0f);
+
+        for (int i = 0; i < ringSize; ++i)
+        {
+            const int index = (writePos + i) & mask;
+            membraneSnapshot[(size_t) i] = buffers.moduleMembrane[(size_t) index].load (std::memory_order_relaxed);
+            bodySnapshot[(size_t) i] = buffers.moduleBody[(size_t) index].load (std::memory_order_relaxed);
+            subSnapshot[(size_t) i] = buffers.moduleSub[(size_t) index].load (std::memory_order_relaxed);
+            clickSnapshot[(size_t) i] = buffers.moduleClick[(size_t) index].load (std::memory_order_relaxed);
+        }
+
+        waveformDisplay.setModuleSamples (membraneSnapshot, bodySnapshot,
+                                          subSnapshot, clickSnapshot);
     }
 
     // ---- Spectrum: FFT auf dem Waveform-Snapshot ----
@@ -563,6 +588,9 @@ void MainComponent::timerCallback()
 
     if (meterDisplay != nullptr)
         meterDisplay->tickStatus (juce::Time::getMillisecondCounterHiRes());
+
+    if (header != nullptr)
+        header->refreshPresetPreview();
 
     // Wert-Anzeigen nur selten neu formatieren (2 Hz statt 30 Hz)
     static int refreshCounter = 0;
@@ -820,12 +848,8 @@ MainComponent::HeaderBar::HeaderBar (CERNAudioProcessor& p,
 
     addAndMakeVisible (logo);
 
-    presetLabel.setText ("PRESET", juce::dontSendNotification);
-    presetLabel.setJustificationType (juce::Justification::centredRight);
-    presetLabel.setFont (CERNLookAndFeel::getNameFont());
-    presetLabel.setColour (juce::Label::textColourId,
-                           CERNLookAndFeel::textColour.withAlpha (0.7f));
-    addAndMakeVisible (presetLabel);
+    presetPreview.setTitle ("Preset preview");
+    addAndMakeVisible (presetPreview);
 
     patchButton.setTooltip ("Patchbay: shows and edits the module and parameter cables. "
                             "The LED counts the active cables.");
@@ -1040,6 +1064,29 @@ void MainComponent::HeaderBar::setCurrentEntry (const PresetManager::Entry& entr
     presetModified = false;
     currentPresetId = findPresetItemId (entry);
     applyPresetDisplayText();
+    refreshPresetPreview();
+}
+
+void MainComponent::HeaderBar::refreshPresetPreview()
+{
+    int index = PresetThumbnailCache::initThumbnailIndex;
+
+    if (thumbnailCache != nullptr && hasCurrentPreset)
+    {
+        switch (currentPreset.kind)
+        {
+            case PresetManager::Entry::Kind::init:    index = PresetThumbnailCache::initThumbnailIndex; break;
+            case PresetManager::Entry::Kind::factory: index = currentPreset.factoryIndex + 1;          break;
+            case PresetManager::Entry::Kind::user:    index = -1;                                     break;
+        }
+    }
+
+    thumbnailIndex = index;
+
+    if (index < 0 || thumbnailCache == nullptr)
+        presetPreview.setCurve ({});
+    else
+        presetPreview.setCurve (thumbnailCache->getCurve (index));
 }
 
 void MainComponent::HeaderBar::loadPresetEntry (const PresetManager::Entry& entry)
@@ -1175,8 +1222,8 @@ void MainComponent::HeaderBar::resized()
         saveButton.setBounds (x, row1Y, 44, rowH);
 
         x -= 44 + gap;
-        presetLabel.setVisible (true);
-        presetLabel.setBounds (x, row1Y, 44, rowH);
+        presetPreview.setVisible (true);
+        presetPreview.setBounds (x, row1Y, 44, rowH);
 
         // Reihe 2: Signalweg links, Performance rechts.
         int leftX = margin;
@@ -1297,18 +1344,18 @@ void MainComponent::HeaderBar::resized()
         x -= morphLabelW + gap;
         morphLabel.setBounds (x, rowY, morphLabelW, rowH);
 
-        presetLabel.setVisible (false);
+        presetPreview.setVisible (false);
     }
     else
     {
         morphSlider.setBounds (0, 0, 0, 0);
         morphLabel.setBounds (0, 0, 0, 0);
 
-        if (! presetLabel.isVisible())
-            presetLabel.setVisible (true);
+        if (! presetPreview.isVisible())
+            presetPreview.setVisible (true);
 
         x -= 40 + gap;
-        presetLabel.setBounds (x, rowY, 40, rowH);
+        presetPreview.setBounds (x, rowY, 40, rowH);
     }
 }
 

@@ -5,6 +5,10 @@ namespace
 {
     const juce::Colour layerLowColour  { 0xff8fd4ff }; // kuehles Weiss-Blau = Tiefe
     const juce::Colour layerHighColour { 0xffffc36b }; // warmes Amber      = Praesenz
+    const juce::Colour moduleMembraneColour { 0xffe8e8e8 };
+    const juce::Colour moduleBodyColour     { 0xffb07cff }; // Violett = Shell-Band
+    const juce::Colour moduleSubColour      { 0xff8fd4ff }; // Cyan   = Sub
+    const juce::Colour moduleClickColour    { 0xffffc36b }; // Amber  = Click
 
     juce::String hzText (float hz)
     {
@@ -39,6 +43,13 @@ WaveformDisplay::WaveformDisplay()
     layeringToggle.setDescription ("Enable automatic two-layer layering");
     addAndMakeVisible (layeringToggle);
 
+    moduleToggle.setClickingTogglesState (true);
+    moduleToggle.setTooltip ("Show the Membrane/Body/Sub/Click contribution curves");
+    moduleToggle.setTitle ("Module overlay");
+    moduleToggle.setDescription ("Show the membrane, body, sub and click contributions");
+    moduleToggle.onClick = [this] { repaint(); };
+    addAndMakeVisible (moduleToggle);
+
     amountSlider.setRange (0.0, 200.0, 1.0);
     amountSlider.setValue (100.0, juce::dontSendNotification);
     amountSlider.setTextValueSuffix (" %");
@@ -54,6 +65,33 @@ WaveformDisplay::WaveformDisplay()
         amountSlider.setEnabled (layeringToggle.getToggleState());
         repaint();
     };
+}
+
+void WaveformDisplay::setModuleSamples (const std::vector<float>& membrane,
+                                        const std::vector<float>& body,
+                                        const std::vector<float>& sub,
+                                        const std::vector<float>& click)
+{
+    moduleMembraneSamples = membrane;
+    moduleBodySamples = body;
+    moduleSubSamples = sub;
+    moduleClickSamples = click;
+
+    for (auto& sample : moduleMembraneSamples)
+        if (! std::isfinite (sample))
+            sample = 0.0f;
+
+    for (auto& sample : moduleBodySamples)
+        if (! std::isfinite (sample))
+            sample = 0.0f;
+
+    for (auto& sample : moduleSubSamples)
+        if (! std::isfinite (sample))
+            sample = 0.0f;
+
+    for (auto& sample : moduleClickSamples)
+        if (! std::isfinite (sample))
+            sample = 0.0f;
 }
 
 void WaveformDisplay::attachLayeringControl (juce::AudioProcessorValueTreeState& apvts,
@@ -148,9 +186,15 @@ void WaveformDisplay::clear()
 
 void WaveformDisplay::resized()
 {
-    // Checkbox sitzt rechts in der Titelzeile.
+    // Checkbox sitzt rechts in der Titelzeile; der MOD-Button links daneben.
     const int toggleW = juce::jmin (getWidth() - 24, 160);
     layeringToggle.setBounds (getWidth() - toggleW - 8, 5, toggleW, 18);
+
+    const bool showModuleToggle = getWidth() >= 215;
+    moduleToggle.setVisible (showModuleToggle);
+
+    if (showModuleToggle)
+        moduleToggle.setBounds (layeringToggle.getX() - 50, 5, 46, 18);
 
     // Amount-Regler nur, wenn das Panel genug Platz hat (sonst ueber FEATURES).
     const bool showAmount = getHeight() >= 112 && getWidth() >= 190;
@@ -240,7 +284,10 @@ void WaveformDisplay::paint (juce::Graphics& g)
         glyphs.addLineOfText (titleFont, "WAVEFORM", 0.0f, 0.0f);
         const float titleWidth = glyphs.getBoundingBox (0, -1, true).getWidth();
 
-        if (layeringToggle.getX() - 8.0f > titleArea.getX() + titleWidth)
+        const float reservedRight = moduleToggle.isVisible() ? (float) moduleToggle.getX()
+                                                               : (float) layeringToggle.getX();
+
+        if (reservedRight - 8.0f > titleArea.getX() + titleWidth)
         {
             g.setColour (CERNLookAndFeel::textColour.withAlpha (0.85f));
             g.setFont (titleFont);
@@ -250,6 +297,13 @@ void WaveformDisplay::paint (juce::Graphics& g)
 
     // Legende unten (nur wenn Layering aktiv): zeigt die errechneten Werte.
     const bool showLegend = layerInfo.enabled;
+    const bool showModules = moduleToggle.getToggleState() && ! moduleMembraneSamples.empty();
+
+    juce::Rectangle<float> moduleLegend;
+
+    if (showModules && area.getHeight() > 60.0f)
+        moduleLegend = area.removeFromBottom (16.0f);
+
     juce::Rectangle<float> legend;
 
     if (showLegend)
@@ -319,11 +373,38 @@ void WaveformDisplay::paint (juce::Graphics& g)
                                               juce::PathStrokeType::curved,
                                               juce::PathStrokeType::rounded));
 
+    // ---- Modul-Overlay: einzelne Beitragskurven (gleiche Skala) ----
+    if (showModules && ! moduleMembraneSamples.empty())
+    {
+        paintLayer (g, area, moduleMembraneSamples, maxAbs, moduleMembraneColour.withAlpha (0.85f), 1.2f);
+        paintLayer (g, area, moduleBodySamples,     maxAbs, moduleBodyColour.withAlpha (0.90f), 1.2f);
+        paintLayer (g, area, moduleSubSamples,      maxAbs, moduleSubColour.withAlpha (0.90f), 1.2f);
+        paintLayer (g, area, moduleClickSamples,    maxAbs, moduleClickColour.withAlpha (0.90f), 1.2f);
+    }
+
     // ---- Layer-Overlays (gleiche absolute Skala wie das Hauptsignal) ----
     if (showLegend && ! layerLowSamples.empty())
     {
         paintLayer (g, area, layerLowSamples, maxAbs, layerLowColour.withAlpha (0.95f), 1.3f);
         paintLayer (g, area, layerHighSamples, maxAbs, layerHighColour.withAlpha (0.95f), 1.3f);
+    }
+
+    // ---- Legende: Modulfarben (nur wenn das Overlay aktiv ist) ----
+    if (showModules && moduleLegend.getHeight() > 8.0f)
+    {
+        const float cellW = moduleLegend.getWidth() * 0.25f;
+        const juce::String labels[] = { "MEM", "BODY", "SUB", "CLICK" };
+        const juce::Colour colours[] = { moduleMembraneColour, moduleBodyColour,
+                                         moduleSubColour, moduleClickColour };
+
+        g.setFont (CERNLookAndFeel::getLabelFont());
+
+        for (int i = 0; i < 4; ++i)
+        {
+            auto cell = moduleLegend.removeFromLeft (cellW);
+            g.setColour (colours[(size_t) i]);
+            g.drawText (labels[(size_t) i], cell, juce::Justification::centredLeft, false);
+        }
     }
 
     // ---- Legende: automatisch errechnete Layer-Werte ----

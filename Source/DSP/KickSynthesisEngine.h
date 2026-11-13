@@ -153,6 +153,12 @@ public:
     const float* getLayerTapHigh() const noexcept { return layerTapHigh.data(); }
     int getLayerTapSize() const noexcept { return (int) layerTapLow.size(); }
 
+    /** Modul-Taps (Membrane/Body/Sub/Click) fuer das Waveform-Overlay (Review §7.3). */
+    const float* getModuleTapMembrane() const noexcept { return moduleTapMembrane.data(); }
+    const float* getModuleTapBody()     const noexcept { return moduleTapBody.data(); }
+    const float* getModuleTapSub()      const noexcept { return moduleTapSub.data(); }
+    const float* getModuleTapClick()    const noexcept { return moduleTapClick.data(); }
+
     PatchGraph& getPatchGraph() noexcept { return patchGraph; }
     const PatchGraph& getPatchGraph() const noexcept { return patchGraph; }
 
@@ -208,6 +214,12 @@ private:
     /** Tap-Puffer der beiden Layer (Audio -> GUI-Waveform, kein Lock). */
     std::vector<float> layerTapLow;
     std::vector<float> layerTapHigh;
+
+    /** Modul-Beitrags-Taps (Membrane/Body/Sub/Click) fuer das Modul-Overlay. */
+    std::vector<float> moduleTapMembrane;
+    std::vector<float> moduleTapBody;
+    std::vector<float> moduleTapSub;
+    std::vector<float> moduleTapClick;
 
     // ---- Modulare Verkabelung (Eurorack-artig) ----
     PatchGraph patchGraph;

@@ -51,8 +51,8 @@ Ausnahmen sind am Ende des Status-Abschnitts begründet (2 GUI-Komfortfeatures).
 - [x] **C3b / M13** `compMix` + `compAutoMakeup` in die Sektion „Comp" verschieben,
       FEATURES entflechten.
 - [x] **C3c** Spectrum-Analyzer: Sub-Band 20–120 Hz auflösen (verzerrte Frequenzachse).
-- [ ] **C3d** (offen, s. Status) Waveform: Modul-Beitrags-Overlay (Membrane/Body/Sub/Click) wie der Layer-Overlay.
-- [ ] **C3e** (offen, s. Status) Preset-Browser: Vorschaubilder (Mini-Wellenform pro Preset).
+- [x] **C3d** Waveform: Modul-Beitrags-Overlay (Membrane/Body/Sub/Click) als Button `MOD` in der Kopfzeile.
+- [x] **C3e** Preset-Browser: 64-Punkt-Wellenform-Vorschau je Preset neben der Auswahl (Button-Hintergrund-Render).
 - [x] **C3f / M14** Sequencer-Slots 64 → 16 (bzw. Step-Editor) — 192 tote Parameter entfernen.
 - [x] **C4a** README: Signal-Flow (Pitch-Richtung!), Parametertabellen neu generiert,
       neue Features (Layering/Amount, True-Peak, Latenz) dokumentiert.

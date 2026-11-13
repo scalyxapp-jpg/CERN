@@ -112,6 +112,12 @@ void KickSynthesisEngine::prepare (double sampleRate, int samplesPerBlock)
     layerTapLow.assign ((size_t) juce::jmax (1, samplesPerBlock), 0.0f);
     layerTapHigh.assign ((size_t) juce::jmax (1, samplesPerBlock), 0.0f);
 
+    const size_t tapSize = (size_t) juce::jmax (1, samplesPerBlock);
+    moduleTapMembrane.assign (tapSize, 0.0f);
+    moduleTapBody.assign (tapSize, 0.0f);
+    moduleTapSub.assign (tapSize, 0.0f);
+    moduleTapClick.assign (tapSize, 0.0f);
+
     // Room: 4-Tap-Netzwerk, max. 600 ms Tap-Abstand (SND-091..100).
     roomBufferSize = juce::jmax (8, (int) std::ceil (sampleRate * 0.65) + 4);
     roomDelayL.assign ((size_t) roomBufferSize, 0.0f);
@@ -2141,6 +2147,13 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                         layerTapHigh[(size_t) i] = layerHigh;
                     }
 
+                    // Modul-Taps fuer das Waveform-Overlay (Review §7.3).
+                    if (i < (int) moduleTapMembrane.size())
+                    {
+                        moduleTapMembrane[(size_t) i] = membraneSample;
+                        moduleTapBody[(size_t) i] = bodySample;
+                    }
+
                     float membraneBus = membraneSample + bodySample + layerLow + layerHigh;
 
                     if (! std::isfinite (membraneBus))
@@ -2195,6 +2208,9 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                         duckGainCurrent = juce::Decibels::decibelsToGain
                             (-duckDepthDb * juce::jlimit (0.0f, 1.0f, duckEnv));
                     }
+                    if (i < (int) moduleTapSub.size())
+                        moduleTapSub[(size_t) i] = subSample;
+
                     jacks[(size_t) Jack::SubOut] = { subSample, subSample };
                     break;
                 }
@@ -2212,6 +2228,9 @@ void KickSynthesisEngine::render (juce::AudioBuffer<float>& buffer, int numSampl
                         clickSample = 0.0f;
 
                     clickSample = mixer.processMono ((int) MixerStage::Channel::Click, clickSample);
+                    if (i < (int) moduleTapClick.size())
+                        moduleTapClick[(size_t) i] = clickSample;
+
                     jacks[(size_t) Jack::ClickOut] = { clickSample, clickSample };
                     break;
                 }

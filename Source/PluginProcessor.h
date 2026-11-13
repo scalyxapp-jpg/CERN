@@ -99,6 +99,12 @@ public:
         // damit die Waveform-Anzeige sie sichtbar ueberlagern kann.
         std::array<std::atomic<float>, (size_t) waveformSize> layerLow {};
         std::array<std::atomic<float>, (size_t) waveformSize> layerHigh {};
+
+        // Modul-Beitrags-Taps (Membrane/Body/Sub/Click) fuer das Modul-Overlay.
+        std::array<std::atomic<float>, (size_t) waveformSize> moduleMembrane {};
+        std::array<std::atomic<float>, (size_t) waveformSize> moduleBody {};
+        std::array<std::atomic<float>, (size_t) waveformSize> moduleSub {};
+        std::array<std::atomic<float>, (size_t) waveformSize> moduleClick {};
     };
     DisplayBuffers& getDisplayBuffers() { return displayBuffers; }
     const DisplayBuffers& getDisplayBuffers() const { return displayBuffers; }

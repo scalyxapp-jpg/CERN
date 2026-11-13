@@ -30,6 +30,7 @@ set(CERN_COMMON_SOURCES
     GUI/PatchView.cpp
     GUI/ParameterPatchView.cpp
     GUI/MixerView.cpp
+    GUI/PresetThumbnails.cpp
 )
 
 # --- UI-Assets (Logo, Metall-/Kappen-Texturen) als BinaryData ---

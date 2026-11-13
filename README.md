@@ -556,6 +556,16 @@ Alle Layer-Werte sind **abgeleitet**; der einzige Regler ist der Amount:
 - **Step-Sequencer**: 16 sichtbare Schritte mit Velocity/Gate/Pitch, BPM, Swing, Lauflicht, manueller Schritt-Trigger; Ratchet/Flam/Probability/Length, Grid, Pattern-Kette und MIDI-Clock-Out sind als Parameter/Engine-Feature vorhanden (Step-Editor-UI für Ratchet & Co. noch nicht).
 - **3D-Interface Schwarz-Weiss-Rot** (Details unten), Doppelklick = Reset auf Default
 - **MIXER-Tab** (Header-Button `MIXER`): 13 Kanalstreifen (Membrane, Body, Tube, Sub, Click, Drive, EQ, Comp, Room, Higgs, Reverb, Mat Room, Output) mit je Gain, 4-Band-EQ (Low/Mid-Low/Mid/High, ±24 dB, 0 dB = bit-transparenter Bypass), MUTE und Peak-Meter; horizontales Scrollen, wenn nicht alle Streifen passen. Automatische Sidechains (Comp → Room/Higgs/Reverb/Mat-Room, max. 5,0/4,0/5,0/4,5 dB), Tiefe global über `SIDE-CHAIN` regelbar; Live-Anzeige der Duck-Tiefe im Streifenkopf.
+- **MODUL-OVERLAY (Button `MOD` in der Waveform-Kopfzeile)**: blendet die vier
+  Einzelbeiträge **Membrane / Body / Sub / Click** als eigene Kurven in die Waveform
+  ein (oben steht die Summe, unten zeigt die Legende die Farbenzuordnung). Damit ist
+  sichtbar, *was* den Kick trägt – der Review-Punkt „Modulbeiträge wie der Layer-Overlay".
+  Die Beiträge werden vor dem Mixer abgegriffen und sind ungemischt dargestellt
+  (gleiche absolute Skala wie das Hauptsignal).
+- **PRESET-VORSCHAU (64-Punkt-Wellenform neben der Preset-Auswahl)**: jedes Factory-
+  Preset wird beim Plugin-Start einmal offline gerendert (0,6 s, Low-Priority-Thread)
+  und als Wellenform angezeigt – so sieht man vor dem Laden grob, wie der Preset klingt.
+  `Init` (Index 0) bekommt dasselbe Thumbnail; User-Presets zeigen keinen Ausschnitt.
 - **LAYERING (Checkbox "LAYERING ENABLED" in der Waveform-Anzeige)**: legt zwei vollständig automatisch berechnete Zusatz-Layer unter/über die Basis-Wave – **L1 DEPTH** (Grundton-Stützung, langer Decay, trägt bis in Rumble/Subbass) und **L2 PRESENCE** (kurzer bandbegrenzter Textur-Layer für Definition in Attack/Click). Frequenz, Länge, Attack, Decay, Pegel, Dichte und Bandlage werden aus fundamentalHz, Sub-, Body-, Click- und Drive-Parametern abgeleitet; beide Layer folgen exakt derselben Modulation (Pitch-Envelope, Glide, Velocity->Pitch, Velocity) wie die Basis. Die Waveform-Anzeige überlagert beide Layer farbig und zeigt die errechneten Werte (Hz · ms · dB · Dichte) als Legende. Die Pegel werden teil-kohärent kompensiert (Basis-Trim), damit das Layering voller statt lauter klingt: gemessen über alle 11 Factory-Presets bleibt die Lautheit innerhalb **+0,8 dB** (Worst Case bei extremen Modul-Einstellungen: **+0,81 dB**).
 - **Resizable Fenster** (min. 700x500, Standard 1100x750), mono-kompatibler Low-End
 

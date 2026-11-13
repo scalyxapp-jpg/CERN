@@ -111,6 +111,35 @@ int main (int argc, char** argv)
     if (mode == "patch")
         clickIfFound (component, "PATCHBAY");
 
+    // Modul-Overlay in der Waveform (Button "MOD"): Audio rendern + MOD an.
+    if (mode == "modules")
+    {
+        if (auto* parameter = processor.getAPVTS().getParameter (ParameterIDs::layeringEnabled))
+            parameter->setValueNotifyingHost (1.0f);
+
+        processor.triggerNote (1.0f);
+
+        juce::AudioBuffer<float> audio (2, 512);
+        juce::MidiBuffer midi;
+
+        for (int block = 0; block < 16; ++block)
+        {
+            audio.clear();
+            midi.clear();
+            processor.processBlock (audio, midi);
+        }
+
+        component.timerCallback();
+
+        // MOD einschalten: das Preview ruft onClick() direkt auf, ohne den
+        // Button zu "klicken" - daher den Toggle-State explizit setzen.
+        if (auto* button = findButton (component, "MOD"))
+        {
+            button->setToggleState (true, juce::sendNotificationSync);
+            component.timerCallback();
+        }
+    }
+
     if (mode == "mixer")
         clickIfFound (component, "MIXER");
 
@@ -168,6 +197,10 @@ int main (int argc, char** argv)
             }
         }
     }
+
+    // Dem Low-Priority-Thread Zeit geben, die Preset-Thumbnails zu rendern.
+    juce::Thread::sleep (6000);
+    component.timerCallback();
 
     juce::Image image (juce::Image::ARGB, component.getWidth(), component.getHeight(), true);
     {
