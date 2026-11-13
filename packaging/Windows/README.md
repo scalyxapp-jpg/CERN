@@ -2,7 +2,7 @@
 
 ## Ziele
 
-- **VST3:** `C.E.R.N.vst3` (Ordner/Bundle) für `C:\Program Files\Common Files\VST3`
+- **VST3:** `CERN.vst3` (Ordner/Bundle) für `C:\Program Files\Common Files\VST3`
 - **Standalone:** `C.E.R.N Standalone.exe` (optional mit Installer)
 - **Distribution:** signierter Installer (Inno Setup `.exe` oder WiX `.msi`)
 
@@ -30,7 +30,7 @@ cmake -B build -G "Visual Studio 17 2022" -A x64 -DCERN_WITH_ASIO=ON
 
 ## Artefakte (typisch)
 
-- `build\Source\CERN_artefacts\Release\VST3\C.E.R.N.vst3\Contents\x86_64-win\C.E.R.N.vst3`
+- `build\Source\CERN_artefacts\Release\VST3\CERN.vst3\Contents\x86_64-win\CERN.vst3`
 - `build\Source\CERNStandalone_artefacts\Release\Standalone\C.E.R.N Standalone.exe`
 
 ## Installer-Vorlagen
@@ -55,7 +55,7 @@ cmake -B build -G "Visual Studio 17 2022" -A x64 -DCERN_WITH_ASIO=ON
 ```powershell
 # Beispiel (Platzhalter)
 signtool sign /fd sha256 /tr http://timestamp.digicert.com /td sha256 ^
-  /sha1 <CERT_THUMBPRINT> "path\to\C.E.R.N.vst3"
+  /sha1 <CERT_THUMBPRINT> "path\to\CERN.vst3"
 ```
 
 ## Manuelle Schritte (offen auf Windows)

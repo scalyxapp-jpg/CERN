@@ -101,7 +101,7 @@ jobs:
           $config = '${{ matrix.build_type }}'
           $dist = "dist/windows"
           New-Item -ItemType Directory -Force -Path $dist | Out-Null
-          $vst3 = "build/Source/CERN_artefacts/$config/VST3/C.E.R.N.vst3"
+          $vst3 = "build/Source/CERN_artefacts/$config/VST3/CERN.vst3"
           $standalone = "build/Source/CERNStandalone_artefacts/$config/Standalone/C.E.R.N Standalone.exe"
           if (Test-Path $vst3) { Compress-Archive -Path $vst3 -DestinationPath "$dist/CERN-vst3-windows-$config.zip" -Force }
           if (Test-Path $standalone) { Compress-Archive -Path $standalone -DestinationPath "$dist/CERN-standalone-windows-$config.zip" -Force }

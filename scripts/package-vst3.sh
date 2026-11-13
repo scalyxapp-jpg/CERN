@@ -9,7 +9,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${1:-$ROOT_DIR/build}"
 CONFIG="${2:-Release}"
 DIST_DIR="${3:-$ROOT_DIR/dist}"
-PLUGIN_NAME="C.E.R.N"
+PLUGIN_NAME="CERN"
 
 UNAME_S="$(uname -s 2>/dev/null || echo Unknown)"
 case "$UNAME_S" in

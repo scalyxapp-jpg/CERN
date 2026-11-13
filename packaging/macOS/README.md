@@ -2,7 +2,7 @@
 
 ## Ziele
 
-- **VST3:** `C.E.R.N.vst3` (Bundle) für `~/Library/Audio/Plug-Ins/VST3` oder `/Library/Audio/Plug-Ins/VST3`
+- **VST3:** `CERN.vst3` (Bundle) für `~/Library/Audio/Plug-Ins/VST3` oder `/Library/Audio/Plug-Ins/VST3`
 - **Standalone:** `C.E.R.N Standalone.app` für `/Applications` oder `~/Applications`
 - **Distribution:** signierte/notarisierte `.pkg` und/oder `.dmg`
 
@@ -52,9 +52,9 @@ Beispiel: `packaging/macOS/entitlements.plist` (Hardened Runtime). Für Audio-Pl
 codesign --force --deep --options runtime --timestamp \
   --entitlements packaging/macOS/entitlements.plist \
   --sign "Developer ID Application: YOUR NAME (TEAMID)" \
-  "build/Source/CERN_artefacts/Release/VST3/C.E.R.N.vst3"
+  "build/Source/CERN_artefacts/Release/VST3/CERN.vst3"
 
-codesign --verify --deep --strict --verbose=2 "build/Source/CERN_artefacts/Release/VST3/C.E.R.N.vst3"
+codesign --verify --deep --strict --verbose=2 "build/Source/CERN_artefacts/Release/VST3/CERN.vst3"
 spctl --assess --type exec --verbose "build/Source/CERNStandalone_artefacts/Release/Standalone/C.E.R.N Standalone.app" || true
 ```
 

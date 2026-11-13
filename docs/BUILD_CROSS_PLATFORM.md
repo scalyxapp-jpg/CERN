@@ -48,7 +48,7 @@ Optionale Backends:
 
 Artefakte:
 
-- `build/Source/CERN_artefacts/Release/VST3/C.E.R.N.vst3/`
+- `build/Source/CERN_artefacts/Release/VST3/CERN.vst3/`
 - `build/Source/CERNStandalone_artefacts/Release/Standalone/C.E.R.N Standalone`
 
 ### Tests
@@ -78,7 +78,7 @@ cmake --build build --config Release --target CERNStandalone --parallel
 
 Artefakte:
 
-- `build/Source/CERN_artefacts/Release/VST3/C.E.R.N.vst3`
+- `build/Source/CERN_artefacts/Release/VST3/CERN.vst3`
 - `build/Source/CERNStandalone_artefacts/Release/Standalone/C.E.R.N Standalone.app`
 
 ### Distribution (auf macOS)
@@ -117,7 +117,7 @@ cmake --build build --config Release --target CERNStandalone --parallel
 
 Artefakte:
 
-- `build\Source\CERN_artefacts\Release\VST3\C.E.R.N.vst3\`
+- `build\Source\CERN_artefacts\Release\VST3\CERN.vst3\`
 - `build\Source\CERNStandalone_artefacts\Release\Standalone\C.E.R.N Standalone.exe`
 
 ### Distribution (auf Windows)
@@ -169,7 +169,7 @@ Workflow: `.github/workflows/build-cross-platform.yml`
 
 - **JUCE FetchContent schlägt fehl:** Netzwerk/Git-Zugriff prüfen; alternativ lokales JUCE mit `-DJUCE_FETCH_FROM_GIT=OFF -DJUCE_DIR=/pfad/zu/JUCE`.
 - **Linux GUI-Build fehlt X11/GTK:** Dev-Pakete installieren (`libx11-dev`, `libgtk-3-dev` etc.). Für reine Nicht-GUI-Setups nicht vorgesehen.
-- **`C.E.R.N.vst3` nicht gefunden:** Artefaktname/Config prüfen (`Release` vs `Debug`), Pfad unter `build/Source/CERN_artefacts/<CONFIG>/VST3/`.
+- **`CERN.vst3` nicht gefunden:** Artefaktname/Config prüfen (`Release` vs `Debug`), Pfad unter `build/Source/CERN_artefacts/<CONFIG>/VST3/`.
 - **ASIO auf Nicht-Windows:** `CERN_WITH_ASIO` wird ignoriert/gewarnt; nur unter Windows aktivieren.
 - **JACK auf Nicht-Linux:** `CERN_WITH_JACK` ist nur unter Linux vorgesehen.
 - **macOS Gatekeeper blockiert:** App/Plugin muss signiert und notariert sein (auf macOS durchführen).

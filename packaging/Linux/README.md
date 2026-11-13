@@ -35,7 +35,7 @@ cmake --build build -j"$(nproc)" --target CERNStandalone
 
 Artefakte:
 
-- `build/Source/CERN_artefacts/Release/VST3/C.E.R.N.vst3/`
+- `build/Source/CERN_artefacts/Release/VST3/CERN.vst3/`
 - `build/Source/CERNStandalone_artefacts/Release/Standalone/C.E.R.N Standalone`
 
 ## Installation (manuell)

@@ -39,7 +39,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 ; Pfade relativ zu diesem .iss (packaging/Windows). Build-Artefakte vorher erzeugen.
 Source: "..\..\build\Source\CERNStandalone_artefacts\Release\Standalone\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 ; VST3-Bundle als Ordner installieren:
-Source: "..\..\build\Source\CERN_artefacts\Release\VST3\C.E.R.N.vst3\*"; DestDir: "{commoncf64}\VST3\C.E.R.N.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\build\Source\CERN_artefacts\Release\VST3\CERN.vst3\*"; DestDir: "{commoncf64}\VST3\CERN.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
