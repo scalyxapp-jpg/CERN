@@ -302,7 +302,6 @@ void CERNAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
         const float* subTap     = engine.getModuleTapSub();
         const float* clickTap   = engine.getModuleTapClick();
         const bool hasLayerTaps = engine.getLayerTapSize() >= numSamples;
-        const bool hasModuleTaps = hasLayerTaps;
 
         for (int i = 0; i < numSamples; i += DisplayBuffers::waveformDecimation)
         {
